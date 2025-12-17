@@ -116,7 +116,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             `}
           >
             <Home size={18} />
-            <span>Dashboard (All Accounts)</span>
+            <span> All Accounts</span>
           </button>
         </div>
 
