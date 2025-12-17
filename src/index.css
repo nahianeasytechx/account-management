@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 /* Ensure all buttons have cursor pointer */
 button:not(:disabled),
 [role="button"]:not(:disabled) {

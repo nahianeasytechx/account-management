@@ -9,7 +9,7 @@ const DashboardCards = ({ accountId = null }) => {
   const calculateAccountTotals = () => {
     let totalIn = 0;
     let totalOut = 0;
-    let currency = 'USD';
+    let currency = 'BDT';
 
     if (accountId) {
       // Calculate for specific account

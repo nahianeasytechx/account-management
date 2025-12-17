@@ -1,0 +1,63 @@
+/* print.css */
+@media print {
+  .bg-gray-50,
+  .bg-white,
+  .bg-gradient-to-br,
+  .bg-gray-900,
+  .bg-gray-800 {
+    background: white !important;
+  }
+  
+  .shadow-sm,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+  
+  .border,
+  .border-gray-200,
+  .border-gray-700 {
+    border: 1px solid #000 !important;
+  }
+  
+  .hidden-print {
+    display: none !important;
+  }
+  
+  .text-white,
+  .text-gray-300,
+  .text-gray-400 {
+    color: #000 !important;
+  }
+  
+  .bg-blue-600,
+  .bg-green-100,
+  .bg-red-100,
+  .bg-blue-100,
+  .bg-purple-100,
+  .bg-gray-100,
+  .bg-green-50,
+  .bg-red-50,
+  .bg-blue-50,
+  .bg-yellow-50 {
+    background: white !important;
+  }
+  
+  .from-blue-500.to-purple-600 {
+    background: white !important;
+    color: #000 !important;
+    border: 2px solid #000 !important;
+  }
+  
+  .p-4, .p-5, .p-6 {
+    padding: 10px !important;
+  }
+  
+  .m-4, .m-5, .m-6 {
+    margin: 10px !important;
+  }
+  
+  .gap-4, .gap-5, .gap-6 {
+    gap: 10px !important;
+  }
+}
