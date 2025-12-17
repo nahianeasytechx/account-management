@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Wallet, Trash2, Globe } from 'lucide-react';
+import { X, Plus, Wallet, Trash2, Globe, Home, List } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
@@ -37,6 +37,14 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const handleAccountClick = (accountId) => {
     setSelectedAccountId(accountId);
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
+  // Handle All Accounts click
+  const handleAllAccountsClick = () => {
+    setSelectedAccountId('all');
     if (window.innerWidth < 1024) {
       onClose();
     }
@@ -96,9 +104,25 @@ const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
+        {/* Dashboard/All Accounts Button */}
+        <div className="px-4 py-2 border-b border-gray-100">
+          <button
+            onClick={handleAllAccountsClick}
+            className={`
+              cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3
+              ${selectedAccountId === 'all' 
+                ? 'bg-blue-50 text-blue-700 font-medium' 
+                : 'hover:bg-gray-50 text-gray-700'}
+            `}
+          >
+            <Home size={18} />
+            <span>Dashboard (All Accounts)</span>
+          </button>
+        </div>
+
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-600 uppercase">Accounts</h3>
+            <h3 className="text-sm font-semibold text-gray-600 uppercase">Individual Accounts</h3>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="cursor-pointer p-1 hover:bg-gray-100 rounded"
@@ -128,7 +152,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <select
                   value={newAccountCurrency}
                   onChange={(e) => setNewAccountCurrency(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   {currencyOptions.map(currency => (
                     <option key={currency.code} value={currency.code}>
@@ -223,6 +247,35 @@ const Sidebar = ({ isOpen, onClose }) => {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* Accounts Summary */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <List size={14} />
+              <span className="font-medium">Summary</span>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Accounts:</span>
+                <span className="font-medium">{accounts.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Transactions:</span>
+                <span className="font-medium">
+                  {accounts.reduce((sum, acc) => sum + acc.transactions.length, 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Balance:</span>
+                <span className="font-medium text-green-600">
+                  ${accounts.reduce((sum, acc) => {
+                    const lastTransaction = acc.transactions[acc.transactions.length - 1];
+                    return sum + (lastTransaction?.balance || 0);
+                  }, 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </aside>

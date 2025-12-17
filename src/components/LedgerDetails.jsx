@@ -38,7 +38,7 @@ const LedgerDetails = () => {
       
       <DashboardCards accountId={selectedAccountId} />
       <TransactionForm accountId={account.id} />
-<TransactionTable transactions={account.transactions} accountId={account.id} />
+      <TransactionTable transactions={account.transactions} accountId={account.id} />
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
