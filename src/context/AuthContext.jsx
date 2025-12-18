@@ -1,136 +1,183 @@
-// context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiRequest, handleApiError } from '../utils/api';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('ledgerUsers');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'demo-user',
-        username: 'demo@example.com',
-        email: 'demo@example.com',
-        name: 'Demo User',
-        password: 'demo123',
-        createdAt: new Date().toISOString()
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Initialize auth state from localStorage
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        try {
+          const response = await apiRequest('GET', '/auth/me');
+          if (response && response.data) {
+            setCurrentUser(response.data);
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error('Failed to validate token:', error);
+          // Clear invalid tokens
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
       }
-    ];
-  });
+      setLoading(false);
+    };
 
-  // Save users to localStorage
-  useEffect(() => {
-    localStorage.setItem('ledgerUsers', JSON.stringify(users));
-  }, [users]);
+    initializeAuth();
+  }, []);
 
-  // Save current user to localStorage
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    } else {
+  const login = async (email, password) => {
+    try {
+      const response = await apiRequest('POST', '/auth/login', {
+        email,
+        password,
+      });
+
+      // Extract tokens and user data from response
+      const { access_token, refresh_token, user } = response.data || response;
+
+      if (!access_token || !user) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Store tokens
+      localStorage.setItem('access_token', access_token);
+      if (refresh_token) {
+        localStorage.setItem('refresh_token', refresh_token);
+      }
+
+      // Store user data
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+
+      // Store in localStorage for persistence
+      localStorage.setItem('currentUser', JSON.stringify(user));
+
+      toast.success(response.message || 'Login successful');
+      return { success: true, data: user };
+    } catch (error) {
+      const message = handleApiError(error, 'Login failed');
+      return { success: false, message };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await apiRequest('POST', '/auth/register', {
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+      });
+
+      // Extract tokens and user data from response
+      const { access_token, refresh_token, user } = response.data || response;
+
+      if (!access_token || !user) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Store tokens
+      localStorage.setItem('access_token', access_token);
+      if (refresh_token) {
+        localStorage.setItem('refresh_token', refresh_token);
+      }
+
+      // Store user data
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+
+      // Store in localStorage for persistence
+      localStorage.setItem('currentUser', JSON.stringify(user));
+
+      toast.success(response.message || 'Registration successful');
+      return { success: true, data: user };
+    } catch (error) {
+      const message = handleApiError(error, 'Registration failed');
+      return { success: false, message };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        await apiRequest('POST', '/auth/logout', { refresh_token: refreshToken });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear storage and state
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       localStorage.removeItem('currentUser');
-    }
-  }, [currentUser]);
-
-  const login = (username, password) => {
-    try {
-      // Check demo user
-      if (username === 'demo@example.com' && password === 'demo123') {
-        const demoUser = {
-          id: 'demo-user',
-          username: 'demo@example.com',
-          email: 'demo@example.com',
-          name: 'Demo User'
-        };
-        setCurrentUser(demoUser);
-        return { success: true, message: 'Login successful' };
-      }
-
-      // Check registered users
-      const user = users.find(
-        u => (u.username === username || u.email === username) && 
-        u.password === password
-      );
-
-      if (user) {
-        const { password, ...userWithoutPassword } = user;
-        setCurrentUser(userWithoutPassword);
-        return { success: true, message: 'Login successful' };
-      }
-
-      return { success: false, message: 'Invalid credentials' };
-    } catch (error) {
-      return { success: false, message: 'Login failed' };
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+      toast.success('Logged out successfully');
     }
   };
 
-  const register = (userData) => {
+  const updateProfile = async (updates) => {
     try {
-      // Check if user already exists
-      const existingUser = users.find(
-        u => u.email === userData.email || u.username === userData.username
-      );
-
-      if (existingUser) {
-        return { success: false, message: 'User already exists' };
-      }
-
-      const newUser = {
-        id: `user-${Date.now()}`,
-        ...userData,
-        createdAt: new Date().toISOString()
-      };
-
-      setUsers([...users, newUser]);
-      
-      const { password, ...userWithoutPassword } = newUser;
-      setCurrentUser(userWithoutPassword);
-      
-      return { success: true, message: 'Registration successful' };
-    } catch (error) {
-      return { success: false, message: 'Registration failed' };
-    }
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    return { success: true, message: 'Logged out successfully' };
-  };
-
-  const updateUser = (updatedData) => {
-    if (!currentUser) return { success: false, message: 'No user logged in' };
-    
-    try {
-      const updatedUsers = users.map(u => 
-        u.id === currentUser.id ? { ...u, ...updatedData } : u
-      );
-      setUsers(updatedUsers);
-      
-      const updatedUser = { ...currentUser, ...updatedData };
+      const response = await apiRequest('PUT', '/user/profile', updates);
+      const updatedUser = response.data || response;
       setCurrentUser(updatedUser);
-      
-      return { success: true, message: 'Profile updated' };
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      toast.success(response.message || 'Profile updated successfully');
+      return { success: true, data: updatedUser };
     } catch (error) {
-      return { success: false, message: 'Update failed' };
+      const message = handleApiError(error, 'Failed to update profile');
+      return { success: false, message };
     }
   };
 
-  const isAuthenticated = !!currentUser;
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      const response = await apiRequest('PUT', '/user/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success(response.message || 'Password changed successfully');
+      return { success: true };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to change password');
+      return { success: false, message };
+    }
+  };
+
+  const getProfile = async () => {
+    try {
+      const response = await apiRequest('GET', '/auth/me');
+      const user = response.data || response;
+      setCurrentUser(user);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      return { success: true, data: user };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to load profile');
+      return { success: false, message };
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      isAuthenticated,
-      login,
-      register,
-      logout,
-      updateUser,
-      users
-    }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        isAuthenticated,
+        loading,
+        login,
+        register,
+        logout,
+        updateProfile,
+        changePassword,
+        getProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

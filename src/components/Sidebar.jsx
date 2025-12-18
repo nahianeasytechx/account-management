@@ -2,26 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Plus, Wallet, Trash2, Globe, Home, List, 
   TrendingUp, PieChart, FileText, Download, Upload,
-  ChevronDown, ChevronUp, Filter, Search
+  ChevronDown, ChevronUp, Filter, Search, Loader, BarChart
 } from 'lucide-react';
-import { useTransactions } from '../context/TransactionContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { apiRequest, handleApiError } from '../utils/api';
+import toast from 'react-hot-toast';
 
 const Sidebar = ({ isOpen, onClose, currentView, setCurrentView }) => {
-  const { 
-    accounts, 
-    selectedAccountId, 
-    setSelectedAccountId, 
-    addAccount,
-    updateAccountCurrency,
-    deleteAccount,
-    getAllTransactions
-  } = useTransactions();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAccountName, setNewAccountName] = useState('');
-  const [newAccountCurrency, setNewAccountCurrency] = useState('USD');
+  const [newAccountCurrency, setNewAccountCurrency] = useState('BDT');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(null);
@@ -29,28 +32,178 @@ const Sidebar = ({ isOpen, onClose, currentView, setCurrentView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAllAccounts, setShowAllAccounts] = useState(true);
   
-  const navigate = useNavigate();
-  const location = useLocation();
+  const currencyOptions = [
+    { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka' },
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+  ];
 
-  // Close sidebar when route changes on mobile
-// Close sidebar when route changes on mobile
-useEffect(() => {
-  // Store the initial pathname on mount
-  const initialPathname = location.pathname;
-  
-  // Only close if pathname actually changed AND sidebar is open
-  if (isOpen && window.innerWidth < 1024 && location.pathname !== initialPathname) {
-    console.log('Route changed, closing sidebar');
-    onClose();
-  }
-}, [location.pathname, onClose, isOpen]);
+  // Fetch accounts and recent transactions
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAccounts();
+      fetchRecentTransactions();
+    }
+  }, [isAuthenticated]);
 
-  const handleAddAccount = () => {
-    if (newAccountName.trim()) {
-      addAccount(newAccountName.trim(), newAccountCurrency);
-      setNewAccountName('');
-      setNewAccountCurrency('USD');
-      setShowAddForm(false);
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (isOpen && window.innerWidth < 1024 && location.pathname !== '/') {
+      onClose();
+    }
+  }, [location.pathname, onClose, isOpen]);
+
+  const fetchAccounts = async () => {
+    try {
+      setLoadingAccounts(true);
+      const response = await apiRequest('GET', 'accounts');
+      
+      // Handle different response structures
+      let accountsData = [];
+      
+      if (response && typeof response === 'object') {
+        if (Array.isArray(response)) {
+          accountsData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          accountsData = response.data;
+        } else if (response.accounts && Array.isArray(response.accounts)) {
+          accountsData = response.accounts;
+        } else if (response.success !== false) {
+          // If response is an object but not an array, check if it's a single account
+          accountsData = [response];
+        }
+      }
+      
+      setAccounts(accountsData);
+      console.log('Accounts loaded:', accountsData);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      toast.error('Failed to load accounts. Please try again.');
+      setAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+      setLoading(false);
+    }
+  };
+
+  const fetchRecentTransactions = async () => {
+    try {
+      setLoadingTransactions(true);
+      const response = await apiRequest('GET', 'transactions', { limit: 5 });
+      
+      // Handle different response structures
+      let transactionsData = [];
+      
+      if (response && typeof response === 'object') {
+        if (Array.isArray(response)) {
+          transactionsData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          transactionsData = response.data;
+        } else if (response.transactions && Array.isArray(response.transactions)) {
+          transactionsData = response.transactions;
+        }
+      }
+      
+      setRecentTransactions(transactionsData.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading recent transactions:', error);
+      setRecentTransactions([]);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  const handleAddAccount = async () => {
+    if (!newAccountName.trim()) {
+      toast.error('Please enter an account name');
+      return;
+    }
+
+    try {
+      const response = await apiRequest('POST', 'accounts', {
+        name: newAccountName.trim(),
+        currency_code: newAccountCurrency
+      });
+
+      // Handle different response structures
+      let newAccount = null;
+      
+      if (response && typeof response === 'object') {
+        if (response.data) {
+          newAccount = response.data;
+        } else if (response.id) {
+          newAccount = response;
+        }
+      }
+
+      if (newAccount) {
+        toast.success('Account created successfully');
+        setAccounts(prev => [...prev, newAccount]);
+        setNewAccountName('');
+        setNewAccountCurrency('BDT');
+        setShowAddForm(false);
+        
+        // Auto-select the new account
+        setSelectedAccountId(newAccount.id);
+        navigate(`/account/${newAccount.id}`);
+      } else {
+        toast.error('Failed to create account');
+      }
+    } catch (error) {
+      handleApiError(error, 'Failed to create account');
+    }
+  };
+
+  const handleUpdateAccountCurrency = async (accountId, newCurrency) => {
+    try {
+      const response = await apiRequest('PUT', `accounts/${accountId}`, {
+        currency_code: newCurrency
+      });
+
+      // Handle different response structures
+      let updatedAccount = null;
+      
+      if (response && typeof response === 'object') {
+        if (response.data) {
+          updatedAccount = response.data;
+        } else if (response.id) {
+          updatedAccount = response;
+        }
+      }
+
+      if (updatedAccount) {
+        toast.success('Currency updated successfully');
+        setAccounts(prev => prev.map(account => 
+          account.id === accountId 
+            ? { ...account, ...updatedAccount }
+            : account
+        ));
+        setShowCurrencyMenu(null);
+      } else {
+        toast.error('Failed to update currency');
+      }
+    } catch (error) {
+      handleApiError(error, 'Failed to update currency');
+    }
+  };
+
+  const handleDeleteAccount = async (accountId) => {
+    try {
+      await apiRequest('DELETE', `accounts/${accountId}`);
+      toast.success('Account deleted successfully');
+      setAccounts(prev => prev.filter(account => account.id !== accountId));
+      
+      // If deleted account was selected, switch to "all"
+      if (selectedAccountId === accountId) {
+        setSelectedAccountId('all');
+        navigate('/dashboard');
+      }
+      
+      setShowDeleteModal(false);
+      setAccountToDelete(null);
+    } catch (error) {
+      handleApiError(error, 'Failed to delete account');
     }
   };
 
@@ -63,6 +216,7 @@ useEffect(() => {
   const handleAccountClick = (accountId) => {
     setSelectedAccountId(accountId);
     setCurrentView('ledger');
+    navigate(`/account/${accountId}`);
     if (window.innerWidth < 1024) {
       onClose();
     }
@@ -71,6 +225,7 @@ useEffect(() => {
   const handleAllAccountsClick = () => {
     setSelectedAccountId('all');
     setCurrentView('dashboard');
+    navigate('/dashboard');
     if (window.innerWidth < 1024) {
       onClose();
     }
@@ -78,6 +233,7 @@ useEffect(() => {
 
   const handleViewClick = (view) => {
     setCurrentView(view);
+    navigate(`/${view}`);
     if (window.innerWidth < 1024) {
       onClose();
     }
@@ -89,26 +245,9 @@ useEffect(() => {
     setShowDeleteModal(true);
   };
 
-  const handleCurrencyChange = (accountId, currency) => {
-    updateAccountCurrency(accountId, currency);
-    setShowCurrencyMenu(null);
-  };
-
-  const confirmDelete = () => {
-    if (accountToDelete) {
-      deleteAccount(accountToDelete.id);
-      setShowDeleteModal(false);
-      setAccountToDelete(null);
-    }
-  };
-
   const toggleAccountExpand = (accountId) => {
     setExpandedAccount(expandedAccount === accountId ? null : accountId);
   };
-
-  const currencyOptions = [
-    { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka' },
-  ];
 
   const getCurrencySymbol = (currencyCode) => {
     const currency = currencyOptions.find(c => c.code === currencyCode);
@@ -116,24 +255,43 @@ useEffect(() => {
   };
 
   const filteredAccounts = accounts.filter(account =>
-    account.name.toLowerCase().includes(searchTerm.toLowerCase())
+    account.name && account.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const recentTransactions = getAllTransactions()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
-
   const getAccountBalance = (account) => {
-    const lastTransaction = account.transactions[account.transactions.length - 1];
-    return lastTransaction?.balance || 0;
+    return parseFloat(account.current_balance || account.balance || 0);
   };
 
   const getAccountColor = (balance) => {
-    if (balance > 1000) return 'text-green-600';
-    if (balance > 0) return 'text-blue-600';
-    if (balance < 0) return 'text-red-600';
-    return 'text-gray-600';
+    if (balance > 1000) return 'text-green-400';
+    if (balance > 0) return 'text-blue-400';
+    if (balance < 0) return 'text-red-400';
+    return 'text-gray-400';
   };
+
+  const getTotalBalance = () => {
+    return accounts.reduce((sum, account) => sum + getAccountBalance(account), 0);
+  };
+
+  const getTotalTransactionsCount = () => {
+    return accounts.reduce((sum, account) => sum + parseInt(account.transaction_count || 0), 0);
+  };
+
+  const formatAmount = (amount) => {
+    const num = parseFloat(amount);
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+  };
+
+  const formatTransactionType = (type) => {
+    if (!type) return '';
+    return type === 'in' ? 'Cash In' : 'Cash Out';
+  };
+
+  const getTransactionSource = (transaction) => {
+    return transaction.source || transaction.paid_to || transaction.description || 'Transaction';
+  };
+
+  if (!isAuthenticated) return null;
 
   return (
     <>
@@ -188,12 +346,34 @@ useEffect(() => {
                 onClick={() => handleViewClick('dashboard')}
                 className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all flex items-center gap-3 ${
                   currentView === 'dashboard' 
-                    ? 'bg-transparent text-white shadow-lg' 
+                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500' 
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`}
               >
                 <PieChart size={18} />
                 <span>Dashboard</span>
+              </button>
+              <button
+                onClick={() => handleViewClick('reports')}
+                className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all flex items-center gap-3 ${
+                  currentView === 'reports' 
+                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <BarChart size={18} />
+                <span>Reports</span>
+              </button>
+              <button
+                onClick={() => handleViewClick('transactions')}
+                className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all flex items-center gap-3 ${
+                  currentView === 'transactions' 
+                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <FileText size={18} />
+                <span>All Transactions</span>
               </button>
             </div>
 
@@ -243,15 +423,15 @@ useEffect(() => {
                   <div className="flex gap-2">
                     <button
                       onClick={handleAddAccount}
-                      className="cursor-pointer flex-1 px-3 py-2 bg-transparent hover:bg-blue-700 text-white rounded transition-colors"
+                      className="cursor-pointer flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                     >
-                      Add
+                      Add Account
                     </button>
                     <button
                       onClick={() => {
                         setShowAddForm(false);
                         setNewAccountName('');
-                        setNewAccountCurrency('USD');
+                        setNewAccountCurrency('BDT');
                       }}
                       className="cursor-pointer flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
                     >
@@ -266,7 +446,7 @@ useEffect(() => {
                 onClick={handleAllAccountsClick}
                 className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all mb-2 flex items-center justify-between ${
                   selectedAccountId === 'all' 
-                    ? 'bg-transparent text-white' 
+                    ? 'bg-blue-600/20 text-white border-l-4 border-blue-500' 
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`}
               >
@@ -280,79 +460,91 @@ useEffect(() => {
               </button>
 
               {/* Individual Accounts */}
-              {showAllAccounts && filteredAccounts.length > 0 && (
+              {showAllAccounts && (
                 <div className="space-y-1">
-                  {filteredAccounts.map(account => (
-                    <div key={account.id} className="group">
-                      <button
-                        onClick={() => handleAccountClick(account.id)}
-                        className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all flex items-center justify-between ${
-                          selectedAccountId === account.id 
-                            ? 'bg-transparent text-white' 
-                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Wallet size={18} />
-                          <div className="text-left">
-                            <span className="block truncate max-w-[120px]">{account.name}</span>
-                          <span className={`text-sm font-medium ${getAccountColor(getAccountBalance(account))}`}>
-                            {getCurrencySymbol(account.currency)}{getAccountBalance(account).toFixed(2)}
-                          </span>
+                  {loadingAccounts ? (
+                    <div className="flex justify-center py-4">
+                      <Loader className="animate-spin text-blue-400" size={20} />
+                    </div>
+                  ) : filteredAccounts.length > 0 ? (
+                    filteredAccounts.map(account => (
+                      <div key={account.id} className="group">
+                        <button
+                          onClick={() => handleAccountClick(account.id)}
+                          className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all flex items-center justify-between ${
+                            selectedAccountId === account.id 
+                              ? 'bg-blue-600/20 text-white border-l-4 border-blue-500' 
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Wallet size={18} />
+                            <div className="text-left">
+                              <span className="block truncate max-w-[120px]">{account.name || 'Unnamed Account'}</span>
+                              <span className={`text-sm font-medium ${getAccountColor(getAccountBalance(account))}`}>
+                                {getCurrencySymbol(account.currency_code || account.currency || 'BDT')}
+                                {formatAmount(getAccountBalance(account))}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleAccountExpand(account.id);
+                              }}
+                              className="cursor-pointer p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-600 rounded text-gray-400"
+                            >
+                              {expandedAccount === account.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+                          </div>
+                        </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleAccountExpand(account.id);
-                            }}
-                            className="cursor-pointer p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-600 rounded text-gray-400"
-                          >
-                            {expandedAccount === account.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          </button>
-                        </div>
-                      </button>
-
-                      {/* Account Actions */}
-                      {expandedAccount === account.id && (
-                        <div className="ml-10 mt-1 space-y-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowCurrencyMenu(account.id);
-                            }}
-                            className="cursor-pointer w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2"
-                          >
-                            <Globe size={12} />
-                            Change Currency
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteClick(e, account)}
-                            className="cursor-pointer w-full text-left px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 rounded flex items-center gap-2"
-                          >
-                            <Trash2 size={12} />
-                            Delete Account
-                          </button>
-                        </div>
+                        {/* Account Actions */}
+                        {expandedAccount === account.id && (
+                          <div className="ml-10 mt-1 space-y-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCurrencyMenu(account.id);
+                              }}
+                              className="cursor-pointer w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2"
+                            >
+                              <Globe size={12} />
+                              Change Currency
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteClick(e, account)}
+                              className="cursor-pointer w-full text-left px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 rounded flex items-center gap-2"
+                            >
+                              <Trash2 size={12} />
+                              Delete Account
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-400">
+                      <Wallet className="mx-auto mb-2" size={24} />
+                      <p className="text-sm">No accounts found</p>
+                      {accounts.length === 0 && !loadingAccounts && (
+                        <button
+                          onClick={() => setShowAddForm(true)}
+                          className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                        >
+                          Create your first account
+                        </button>
+                      )}
+                      {searchTerm && accounts.length > 0 && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                        >
+                          Clear search
+                        </button>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {showAllAccounts && filteredAccounts.length === 0 && (
-                <div className="text-center py-4 text-gray-400">
-                  <Wallet className="mx-auto mb-2" size={24} />
-                  <p className="text-sm">No accounts found</p>
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                    >
-                      Clear search
-                    </button>
                   )}
                 </div>
               )}
@@ -365,25 +557,41 @@ useEffect(() => {
                 Recent Transactions
               </h3>
               <div className="space-y-2">
-                {recentTransactions.slice(0, 3).map(transaction => (
-                  <div key={transaction.id} className="px-2 py-1.5 hover:bg-gray-700 rounded-lg cursor-pointer">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-300 truncate max-w-[120px]">
-                        {transaction.source}
-                      </span>
-                      <span className={`text-xs font-medium ${
-                        transaction.type === 'in' ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {transaction.type === 'in' ? '+' : '-'}{getCurrencySymbol(transaction.accountCurrency)}{transaction.amount.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {transaction.description}
-                    </div>
+                {loadingTransactions ? (
+                  <div className="flex justify-center py-2">
+                    <Loader className="animate-spin text-blue-400" size={16} />
                   </div>
-                ))}
+                ) : recentTransactions.length > 0 ? (
+                  recentTransactions.map(transaction => (
+                    <div 
+                      key={transaction.id} 
+                      className="px-2 py-1.5 hover:bg-gray-700 rounded-lg cursor-pointer"
+                      onClick={() => navigate(`/transaction/${transaction.id}`)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-300 truncate max-w-[120px]">
+                          {getTransactionSource(transaction)}
+                        </span>
+                        <span className={`text-xs font-medium ${
+                          transaction.type === 'in' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {transaction.type === 'in' ? '+' : '-'}
+                          {getCurrencySymbol(transaction.currency_code || 'BDT')}
+                          {formatAmount(transaction.amount)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {transaction.description || formatTransactionType(transaction.type)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-2 text-gray-500 text-xs">
+                    No recent transactions
+                  </div>
+                )}
               </div>
-              {recentTransactions.length > 3 && (
+              {recentTransactions.length > 0 && (
                 <button
                   onClick={() => navigate('/transactions')}
                   className="w-full text-center text-xs text-blue-400 hover:text-blue-300 mt-2 py-1 cursor-pointer"
@@ -401,7 +609,7 @@ useEffect(() => {
             <div className="flex justify-between">
               <span className="text-gray-400">Total Balance</span>
               <span className="font-medium text-green-400">
-                ${accounts.reduce((sum, acc) => sum + getAccountBalance(acc), 0).toFixed(2)}
+                ${formatAmount(getTotalBalance())}
               </span>
             </div>
             <div className="flex justify-between">
@@ -411,7 +619,7 @@ useEffect(() => {
             <div className="flex justify-between">
               <span className="text-gray-400">Total Transactions</span>
               <span className="font-medium text-purple-300">
-                {accounts.reduce((sum, acc) => sum + acc.transactions.length, 0)}
+                {getTotalTransactionsCount()}
               </span>
             </div>
           </div>
@@ -425,14 +633,14 @@ useEffect(() => {
           setShowDeleteModal(false);
           setAccountToDelete(null);
         }}
-        onConfirm={confirmDelete}
-        accountName={accountToDelete?.name || ''}
+        onConfirm={() => accountToDelete && handleDeleteAccount(accountToDelete.id)}
+        accountName={accountToDelete?.name || 'this account'}
       />
 
       {/* Currency Selection Modal */}
       {showCurrencyMenu && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-64">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-xs">
             <div className="p-4 border-b border-gray-700">
               <h3 className="font-medium text-white">Change Currency</h3>
               <p className="text-sm text-gray-400">Select new currency for this account</p>
@@ -441,11 +649,8 @@ useEffect(() => {
               {currencyOptions.map(currency => (
                 <button
                   key={currency.code}
-                  onClick={() => {
-                    handleCurrencyChange(showCurrencyMenu, currency.code);
-                    setShowCurrencyMenu(null);
-                  }}
-                  className="cursor-pointer w-full text-left px-3 py-2.5 text-sm rounded hover:bg-gray-700 flex items-center justify-between"
+                  onClick={() => handleUpdateAccountCurrency(showCurrencyMenu, currency.code)}
+                  className="cursor-pointer w-full text-left px-3 py-2.5 text-sm rounded hover:bg-gray-700 flex items-center justify-between mb-1 last:mb-0"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-base">{currency.symbol}</span>
