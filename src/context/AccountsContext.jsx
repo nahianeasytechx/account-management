@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiRequest, handleApiError } from '../utils/api';
+// src/context/AccountsContext.jsx
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiRequest, handleApiError } from '../config/api';
 import toast from 'react-hot-toast';
 
 const AccountsContext = createContext();
@@ -9,12 +10,7 @@ export const AccountsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState('all');
 
-  // Fetch accounts on mount
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/accounts');
@@ -24,19 +20,23 @@ export const AccountsProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  const getAccountById = useCallback(
+    (id) => accounts.find(acc => acc.id === id) || null,
+    [accounts]
+  );
 
   const createAccount = async (name, currencyCode) => {
     try {
-      const response = await apiRequest('POST', '/accounts', {
-        name,
-        currency_code: currencyCode,
-      });
-
-      const newAccount = response.data;
-      setAccounts([...accounts, newAccount]);
+      const response = await apiRequest('POST', '/accounts', { name, currency_code: currencyCode });
+      setAccounts(prev => [...prev, response.data]);
       toast.success(response.message || 'Account created successfully');
-      return { success: true, data: newAccount };
+      return { success: true, data: response.data };
     } catch (error) {
       const message = handleApiError(error, 'Failed to create account');
       return { success: false, message };
@@ -46,11 +46,7 @@ export const AccountsProvider = ({ children }) => {
   const updateAccount = async (accountId, updates) => {
     try {
       const response = await apiRequest('PUT', `/accounts/${accountId}`, updates);
-      
-      setAccounts(accounts.map(account =>
-        account.id === accountId ? { ...account, ...response.data } : account
-      ));
-      
+      setAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, ...response.data } : acc));
       toast.success(response.message || 'Account updated successfully');
       return { success: true, data: response.data };
     } catch (error) {
@@ -62,31 +58,14 @@ export const AccountsProvider = ({ children }) => {
   const deleteAccount = async (accountId) => {
     try {
       await apiRequest('DELETE', `/accounts/${accountId}`);
-      
-      setAccounts(accounts.filter(account => account.id !== accountId));
-      if (selectedAccountId === accountId) {
-        setSelectedAccountId('all');
-      }
-      
+      setAccounts(prev => prev.filter(acc => acc.id !== accountId));
+      if (selectedAccountId === accountId) setSelectedAccountId('all');
       toast.success('Account deleted successfully');
       return { success: true };
     } catch (error) {
       const message = handleApiError(error, 'Failed to delete account');
       return { success: false, message };
     }
-  };
-
-  const getAccountBalance = (accountId) => {
-    const account = accounts.find(acc => acc.id === accountId);
-    return account ? parseFloat(account.current_balance) : 0;
-  };
-
-  const getTotalBalance = () => {
-    return accounts.reduce((sum, account) => sum + parseFloat(account.current_balance || 0), 0);
-  };
-
-  const getTotalTransactions = () => {
-    return accounts.reduce((sum, account) => sum + parseInt(account.transaction_count || 0), 0);
   };
 
   return (
@@ -100,9 +79,7 @@ export const AccountsProvider = ({ children }) => {
         createAccount,
         updateAccount,
         deleteAccount,
-        getAccountBalance,
-        getTotalBalance,
-        getTotalTransactions,
+        getAccountById,
       }}
     >
       {children}

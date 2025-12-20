@@ -1,8 +1,8 @@
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +16,7 @@ const Login = () => {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState('');
   
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const Login = () => {
     if (!isLogin) {
       if (!formData.name.trim()) {
         newErrors.name = 'Name is required';
-      } else if (formData.name.length < 2) {
+      } else if (formData.name.trim().length < 2) {
         newErrors.name = 'Name must be at least 2 characters';
       }
     }
@@ -45,7 +46,9 @@ const Login = () => {
     }
 
     if (!isLogin) {
-      if (formData.password !== formData.confirmPassword) {
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
     }
@@ -53,48 +56,36 @@ const Login = () => {
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setErrors({});
+  setApiError('');
 
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+  const validationErrors = validateForm();
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const result = await login(formData.email, formData.password);
+
+    if (result.success) {
+      // Redirect to original page or home
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } else {
+      setApiError(result.message || 'Login failed');
     }
+  } catch (error) {
+    setApiError('An unexpected error occurred. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setLoading(true);
-
-    try {
-      if (isLogin) {
-        const result = await login(formData.email, formData.password);
-        if (result.success) {
-          // Get redirect path from location state or default to dashboard
-          const from = location.state?.from?.pathname || '/dashboard';
-          navigate(from, { replace: true });
-        } else {
-          toast.error(result.message || 'Login failed');
-        }
-      } else {
-        const result = await register({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
-        });
-
-        if (result.success) {
-          navigate('/dashboard', { replace: true });
-        } else {
-          toast.error(result.message || 'Registration failed');
-        }
-      }
-    } catch (error) {
-      console.error('Auth error:', error);
-      toast.error('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const resetForm = () => {
     setFormData({
@@ -104,20 +95,7 @@ const Login = () => {
       confirmPassword: ''
     });
     setErrors({});
-  };
-
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    try {
-      const result = await login('demo@example.com', 'demo123');
-      if (result.success) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (error) {
-      toast.error('Demo login failed');
-    } finally {
-      setLoading(false);
-    }
+    setApiError('');
   };
 
   return (
@@ -147,6 +125,14 @@ const Login = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-gray-800/50 backdrop-blur-sm py-8 px-4 shadow-2xl rounded-xl sm:px-10 border border-gray-700/50">
+          {/* API Error Message */}
+          {apiError && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-2">
+              <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={18} />
+              <p className="text-sm text-red-400">{apiError}</p>
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
               <div>
@@ -275,32 +261,7 @@ const Login = () => {
               </div>
             )}
 
-            {isLogin && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-900"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300 cursor-pointer">
-                    Remember me
-                  </label>
-                </div>
-
-                <div className="text-sm">
-                  <button
-                    type="button"
-                    className="font-medium text-blue-400 hover:text-blue-300 cursor-pointer"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-3">
+            <div>
               <button
                 type="submit"
                 disabled={loading}
@@ -322,44 +283,8 @@ const Login = () => {
                   </div>
                 )}
               </button>
-
-              <button
-                type="button"
-                onClick={handleDemoLogin}
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all cursor-pointer"
-              >
-                Try Demo Account
-              </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-700" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-800/50 text-gray-400">
-                  Demo credentials
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-400">
-                Use these credentials to test the app:
-              </p>
-              <div className="mt-2 p-3 bg-gray-900/30 rounded-lg">
-                <p className="text-sm font-medium text-gray-300">
-                  Email: demo@example.com
-                </p>
-                <p className="text-sm font-medium text-gray-300 mt-1">
-                  Password: demo123
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="mt-8 text-center">

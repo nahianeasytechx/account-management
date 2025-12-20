@@ -1,183 +1,108 @@
+// src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiRequest, handleApiError } from '../utils/api';
-import toast from 'react-hot-toast';
+import { 
+  API_ENDPOINTS, 
+  get, 
+  post, 
+  setTokens, 
+  clearTokens, 
+  isAuthenticated as checkAuth,
+  handleApiError
+} from '../config/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize auth state from localStorage
+  // Initialize auth state on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        try {
-          const response = await apiRequest('GET', '/auth/me');
-          if (response && response.data) {
-            setCurrentUser(response.data);
-            setIsAuthenticated(true);
-          }
-        } catch (error) {
-          console.error('Failed to validate token:', error);
-          // Clear invalid tokens
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-        }
+      if (!checkAuth()) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        const response = await get(API_ENDPOINTS.AUTH_ME);
+        let userData = response?.data || response;
+
+        if (userData?.id || userData?.email) {
+          setCurrentUser(userData);
+        } else {
+          clearTokens();
+        }
+      } catch (error) {
+        clearTokens();
+        console.error('Auth initialization failed:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initializeAuth();
   }, []);
 
+  // Function to check authentication
+  const isAuthenticated = () => !!currentUser;
+
+  // Login function
   const login = async (email, password) => {
     try {
-      const response = await apiRequest('POST', '/auth/login', {
-        email,
-        password,
-      });
+      const response = await post(API_ENDPOINTS.AUTH_LOGIN, { email, password });
 
-      // Extract tokens and user data from response
-      const { access_token, refresh_token, user } = response.data || response;
+      if (response.success && response.data?.user && response.data?.access_token) {
+        setTokens(response.data.access_token, response.data.refresh_token);
+        setCurrentUser(response.data.user);
 
-      if (!access_token || !user) {
-        throw new Error('Invalid response from server');
+        return {
+          success: true,
+          message: response.message,
+          user: response.data.user
+        };
+      } else {
+        return { success: false, message: 'Invalid server response format' };
       }
-
-      // Store tokens
-      localStorage.setItem('access_token', access_token);
-      if (refresh_token) {
-        localStorage.setItem('refresh_token', refresh_token);
-      }
-
-      // Store user data
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-
-      // Store in localStorage for persistence
-      localStorage.setItem('currentUser', JSON.stringify(user));
-
-      toast.success(response.message || 'Login successful');
-      return { success: true, data: user };
     } catch (error) {
-      const message = handleApiError(error, 'Login failed');
-      return { success: false, message };
+      return { success: false, message: error.message || 'Login failed' };
     }
   };
 
-  const register = async (userData) => {
-    try {
-      const response = await apiRequest('POST', '/auth/register', {
-        name: userData.name,
-        email: userData.email,
-        password: userData.password,
-      });
-
-      // Extract tokens and user data from response
-      const { access_token, refresh_token, user } = response.data || response;
-
-      if (!access_token || !user) {
-        throw new Error('Invalid response from server');
-      }
-
-      // Store tokens
-      localStorage.setItem('access_token', access_token);
-      if (refresh_token) {
-        localStorage.setItem('refresh_token', refresh_token);
-      }
-
-      // Store user data
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-
-      // Store in localStorage for persistence
-      localStorage.setItem('currentUser', JSON.stringify(user));
-
-      toast.success(response.message || 'Registration successful');
-      return { success: true, data: user };
-    } catch (error) {
-      const message = handleApiError(error, 'Registration failed');
-      return { success: false, message };
-    }
-  };
-
+  // Logout function
   const logout = async () => {
     try {
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        await apiRequest('POST', '/auth/logout', { refresh_token: refreshToken });
+        await post(API_ENDPOINTS.AUTH_LOGOUT, { refresh_token: refreshToken }).catch(() => {});
       }
-    } catch (error) {
-      console.error('Logout error:', error);
     } finally {
-      // Clear storage and state
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('currentUser');
+      clearTokens();
       setCurrentUser(null);
-      setIsAuthenticated(false);
-      toast.success('Logged out successfully');
     }
   };
 
-  const updateProfile = async (updates) => {
+  // Register function
+  const register = async (userData) => {
     try {
-      const response = await apiRequest('PUT', '/user/profile', updates);
-      const updatedUser = response.data || response;
-      setCurrentUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      toast.success(response.message || 'Profile updated successfully');
-      return { success: true, data: updatedUser };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to update profile');
-      return { success: false, message };
-    }
-  };
+      const response = await post(API_ENDPOINTS.AUTH_REGISTER, {
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+      }, { skipAuth: true });
 
-  const changePassword = async (currentPassword, newPassword) => {
-    try {
-      const response = await apiRequest('PUT', '/user/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
-      toast.success(response.message || 'Password changed successfully');
-      return { success: true };
+      return {
+        success: response.success !== false,
+        message: response.message || 'Registration successful',
+        data: response.data || null
+      };
     } catch (error) {
-      const message = handleApiError(error, 'Failed to change password');
-      return { success: false, message };
-    }
-  };
-
-  const getProfile = async () => {
-    try {
-      const response = await apiRequest('GET', '/auth/me');
-      const user = response.data || response;
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return { success: true, data: user };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to load profile');
-      return { success: false, message };
+      return { success: false, message: handleApiError(error, 'Registration failed') };
     }
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        isAuthenticated,
-        loading,
-        login,
-        register,
-        logout,
-        updateProfile,
-        changePassword,
-        getProfile,
-      }}
-    >
+    <AuthContext.Provider value={{ currentUser, loading, isAuthenticated, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
@@ -188,3 +113,5 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
+
+export default AuthContext;
