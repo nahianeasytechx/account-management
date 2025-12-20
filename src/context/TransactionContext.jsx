@@ -1,53 +1,96 @@
-// src/context/TransactionContext.jsx
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { apiRequest, handleApiError, API_ENDPOINTS } from '../config/api';
+// src/context/TransactionContext.jsx - UPDATED
+import React, { createContext, useContext, useCallback } from 'react';
+import { apiRequest, handleApiError } from '../config/api';
 
 const TransactionContext = createContext();
 
 export const TransactionProvider = ({ children }) => {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // Memoize fetchTransactions to prevent infinite loops
-  const fetchTransactions = useCallback(async (accountId = 'all', type = 'all') => {
+  const getDashboardSummary = useCallback(async (accountId = 'all', type = 'all') => {
     try {
-      setLoading(true);
       const params = new URLSearchParams();
       if (accountId !== 'all') params.append('account_id', accountId);
       if (type !== 'all') params.append('type', type);
-
-      const response = await apiRequest('GET', `${API_ENDPOINTS.DASHBOARD_SUMMARY}?${params.toString()}`);
-      if (response.success) {
-        setTransactions(response.data.transactions || []);
-        return { success: true, data: response.data };
-      }
-      return { success: false, message: 'Failed to fetch transactions' };
+      
+      const queryString = params.toString();
+      const url = `/dashboard/summary${queryString ? `?${queryString}` : ''}`;
+      const response = await apiRequest('GET', url);
+      return { success: true, data: response.data };
     } catch (error) {
-      const message = handleApiError(error, 'Failed to fetch transactions');
+      const message = handleApiError(error, 'Failed to load dashboard summary');
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
-  }, []); // Empty deps - function never changes
+  }, []);
 
-  // Memoize getDashboardSummary
-  const getDashboardSummary = useCallback(async (accountId = 'all', type = 'all') => {
+  const addTransaction = async (accountId, transactionData) => {
     try {
-      const result = await fetchTransactions(accountId, type);
-      if (result.success) return { success: true, data: result.data };
-      return result;
+      const response = await apiRequest('POST', '/transactions', {
+        ...transactionData,
+        account_id: accountId
+      });
+      return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      const message = handleApiError(error, 'Failed to add transaction');
+      return { success: false, message };
     }
-  }, [fetchTransactions]);
+  };
+
+  const updateTransaction = async (transactionId, updates) => {
+    try {
+      const response = await apiRequest('PUT', `/transactions/${transactionId}`, updates);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to update transaction');
+      return { success: false, message };
+    }
+  };
+
+  const deleteTransaction = async (transactionId) => {
+    try {
+      const response = await apiRequest('DELETE', `/transactions/${transactionId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to delete transaction');
+      return { success: false, message };
+    }
+  };
+
+  const fetchTransactions = async (accountId = '', filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (accountId) params.append('account_id', accountId);
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      
+      const queryString = params.toString();
+      const url = `/transactions${queryString ? `?${queryString}` : ''}`;
+      const response = await apiRequest('GET', url);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to load transactions');
+      return { success: false, message };
+    }
+  };
+
+  const getTransaction = async (transactionId) => {
+    try {
+      const response = await apiRequest('GET', `/transactions/${transactionId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const message = handleApiError(error, 'Failed to load transaction');
+      return { success: false, message };
+    }
+  };
 
   return (
     <TransactionContext.Provider
       value={{
-        transactions,
-        loading,
-        fetchTransactions,
         getDashboardSummary,
+        addTransaction,
+        updateTransaction,
+        deleteTransaction,
+        fetchTransactions,
+        getTransaction
       }}
     >
       {children}

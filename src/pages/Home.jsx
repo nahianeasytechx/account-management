@@ -1,21 +1,59 @@
-// pages/Home.js - UPDATED VERSION
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useAccounts } from "../context/AccountsContext"; // Import the context
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
-import Dashboard from "../components/Dashboard";
-import LedgerDetails from "../components/LedgerDetails";
+// pages/Home.js - FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useAccounts } from '../context/AccountsContext';
+import Navbar from '../components/Navbar';
+import Sidebar from '../components/Sidebar';
+import Dashboard from '../components/Dashboard';
+import LedgerDetails from '../components/LedgerDetails';
 
 const Home = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState("dashboard");
+  const [currentView, setCurrentView] = useState('dashboard');
   const { currentUser, logout } = useAuth();
+  const { selectedAccountId, setSelectedAccountId, accounts } = useAccounts();
 
-  // Get selectedAccountId from AccountsContext
-  const { selectedAccountId } = useAccounts();
+  // Add keyboard shortcut to close sidebar (Escape key)
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
 
-  // ... (your existing useEffect hooks remain the same)
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [sidebarOpen]);
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [sidebarOpen]);
+
+  // Handle view change with account selection validation
+  const handleViewChange = (view) => {
+    if (view === 'ledger') {
+      // If trying to view ledger but "all" is selected or no account selected
+      if (selectedAccountId === 'all' || !selectedAccountId) {
+        // Select the first available account
+        if (accounts.length > 0) {
+          setSelectedAccountId(accounts[0].id);
+        } else {
+          // No accounts available, stay on dashboard
+          alert('Please create an account first before viewing ledger details');
+          return;
+        }
+      }
+    }
+    setCurrentView(view);
+  };
 
   if (!currentUser) {
     return (
@@ -30,52 +68,48 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar
-        onMenuClick={() => {
-          console.log("Menu button clicked, setting sidebarOpen to true");
-          setSidebarOpen(true);
-        }}
+      <Navbar 
+        onMenuClick={() => setSidebarOpen(true)} 
         userName={currentUser.name}
         onLogout={logout}
       />
-
-      <Sidebar
-        isOpen={sidebarOpen}
+      
+      <Sidebar 
+        isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
         currentView={currentView}
-        setCurrentView={setCurrentView}
+        setCurrentView={handleViewChange}
       />
-
+      
       <main className="pt-[57px] lg:pl-64 min-h-screen transition-all duration-200">
         <div className="p-4 md:p-6">
           <div className="mb-6 flex gap-2">
             <button
-              onClick={() => setCurrentView("dashboard")}
+              onClick={() => handleViewChange('dashboard')}
               className={`cursor-pointer px-4 py-2 rounded-lg transition-all duration-200 ${
-                currentView === "dashboard"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-white text-gray-700 hover:bg-gray-100 hover:shadow"
+                currentView === 'dashboard' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100 hover:shadow'
               }`}
             >
               Dashboard
             </button>
             <button
-              onClick={() => setCurrentView("ledger")}
+              onClick={() => handleViewChange('ledger')}
               className={`cursor-pointer px-4 py-2 rounded-lg transition-all duration-200 ${
-                currentView === "ledger"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-white text-gray-700 hover:bg-gray-100 hover:shadow"
+                currentView === 'ledger' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100 hover:shadow'
               }`}
             >
               Ledger Details
             </button>
           </div>
-
-          {currentView === "dashboard" ? (
+          
+          {currentView === 'dashboard' ? (
             <Dashboard />
           ) : (
-            // Pass selectedAccountId to LedgerDetails
-            <LedgerDetails accountId={selectedAccountId} />
+            <LedgerDetails />
           )}
         </div>
       </main>

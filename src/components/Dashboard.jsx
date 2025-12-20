@@ -93,29 +93,37 @@ const Dashboard = () => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="text-red-600 mb-4">Error: {error}</div>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Retry
-        </button>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full">
+          <h3 className="text-red-800 font-bold mb-2">Error Loading Dashboard</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={16} />
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">
-            {selectedAccountId === 'all' ? 'Dashboard - All Accounts' : `Dashboard - ${account?.name || 'Account'}`}
+            {selectedAccountId === 'all' 
+              ? 'Dashboard - All Accounts' 
+              : `Dashboard - ${account?.name || 'Account'}`
+            }
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             {selectedAccountId === 'all' 
               ? `Viewing all ${accounts.length} accounts` 
-              : `${summary.total_transactions} transactions in this account`}
+              : `${summary.total_transactions} transactions in this account`
+            }
           </p>
         </div>
         
@@ -123,7 +131,7 @@ const Dashboard = () => {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="cursor-pointer flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -143,10 +151,7 @@ const Dashboard = () => {
       
       {/* Dashboard Cards */}
       <div className="mb-8">
-        <DashboardCards 
-          accountId={selectedAccountId === 'all' ? null : selectedAccountId}
-          summary={summary}
-        />
+        <DashboardCards summary={summary} />
       </div>
       
       {/* Transaction Cards Section */}
@@ -213,44 +218,51 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <div className="text-gray-400 mb-2">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
             <p className="text-gray-500">
               {filterType !== 'all' 
                 ? `No ${filterType === 'in' ? 'cash in' : 'cash out'} transactions found`
-                : 'No transactions yet'}
+                : 'No transactions yet'
+              }
             </p>
             <p className="text-sm text-gray-400 mt-1">
               {selectedAccountId === 'all' 
                 ? 'Transactions will appear here from all accounts'
-                : 'Add your first transaction from the Ledger Details page'}
+                : 'Add your first transaction from the Ledger Details page'
+              }
             </p>
           </div>
         )}
       </div>
       
-      {/* Summary Stats */}
+      {/* Summary Stats - Only show if there are transactions */}
       {displayedTransactions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Total Cash In</h4>
             <p className="text-2xl font-bold text-green-600">
               ${summary.total_cash_in.toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {displayedTransactions.filter(t => t.type === 'in').length} transactions
+              {displayedTransactions.filter(t => t.type === 'in').length} transaction{displayedTransactions.filter(t => t.type === 'in').length !== 1 ? 's' : ''}
             </p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Total Cash Out</h4>
             <p className="text-2xl font-bold text-red-600">
               ${summary.total_cash_out.toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {displayedTransactions.filter(t => t.type === 'out').length} transactions
+              {displayedTransactions.filter(t => t.type === 'out').length} transaction{displayedTransactions.filter(t => t.type === 'out').length !== 1 ? 's' : ''}
             </p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Net Balance</h4>
             <p className={`text-2xl font-bold ${
               summary.total_balance >= 0 ? 'text-gray-900' : 'text-red-600'
@@ -277,4 +289,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Dashboard
