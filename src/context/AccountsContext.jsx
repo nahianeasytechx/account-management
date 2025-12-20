@@ -10,6 +10,7 @@ export const AccountsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState('all');
 
+  // Use useCallback to memoize fetchAccounts
   const fetchAccounts = useCallback(async () => {
     try {
       setLoading(true);
@@ -20,11 +21,11 @@ export const AccountsProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Empty dependency array - function never changes
 
   useEffect(() => {
     fetchAccounts();
-  }, [fetchAccounts]);
+  }, [fetchAccounts]); // Now safe to include
 
   const getAccountById = useCallback(
     (id) => accounts.find(acc => acc.id === id) || null,

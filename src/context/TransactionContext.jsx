@@ -1,5 +1,5 @@
 // src/context/TransactionContext.jsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { apiRequest, handleApiError, API_ENDPOINTS } from '../config/api';
 
 const TransactionContext = createContext();
@@ -8,7 +8,8 @@ export const TransactionProvider = ({ children }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchTransactions = async (accountId = 'all', type = 'all') => {
+  // Memoize fetchTransactions to prevent infinite loops
+  const fetchTransactions = useCallback(async (accountId = 'all', type = 'all') => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -27,9 +28,10 @@ export const TransactionProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty deps - function never changes
 
-  const getDashboardSummary = async (accountId = 'all', type = 'all') => {
+  // Memoize getDashboardSummary
+  const getDashboardSummary = useCallback(async (accountId = 'all', type = 'all') => {
     try {
       const result = await fetchTransactions(accountId, type);
       if (result.success) return { success: true, data: result.data };
@@ -37,7 +39,7 @@ export const TransactionProvider = ({ children }) => {
     } catch (error) {
       return { success: false, message: error.message };
     }
-  };
+  }, [fetchTransactions]);
 
   return (
     <TransactionContext.Provider

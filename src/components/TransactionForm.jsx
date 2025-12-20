@@ -1,23 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Paperclip, X } from 'lucide-react';
-import { useTransactions } from '../context/TransactionContext';
+import { Upload, Paperclip, X, Save } from 'lucide-react';
+import { useAccounts } from '../context/AccountsContext';
 
-const TransactionForm = ({ accountId }) => {
-  const { addTransaction, getAccountById, formatFileSize } = useTransactions();
+const TransactionForm = ({ accountId, onAddTransaction, formatFileSize }) => {
+  const { getAccountById, refreshAccounts } = useAccounts();
   const account = getAccountById(accountId);
   const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     amount: '',
     type: 'in',
-    date: new Date().toISOString().split('T')[0],
+    transaction_date: new Date().toISOString().split('T')[0],
     source: '',
-    paidTo: '',
+    paid_to: '',
     description: '',
   });
   
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
 
   const getCurrencySymbol = () => {
     if (!account) return '$';
@@ -29,7 +30,7 @@ const TransactionForm = ({ accountId }) => {
       JPY: '¥',
       INR: '₹',
     };
-    return currencySymbols[account.currency] || account.currency;
+    return currencySymbols[account.currency_code] || account.currency_symbol || '$';
   };
 
   const currencySymbol = getCurrencySymbol();
@@ -37,10 +38,14 @@ const TransactionForm = ({ accountId }) => {
   const handleFileUpload = (e) => {
     const newFiles = Array.from(e.target.files);
     
-    // Filter out duplicates
-    const filteredFiles = newFiles.filter(newFile => 
-      !files.some(existingFile => existingFile.name === newFile.name)
-    );
+    // Filter out duplicates and check file size (max 5MB)
+    const filteredFiles = newFiles.filter(newFile => {
+      if (newFile.size > 5 * 1024 * 1024) {
+        alert(`File ${newFile.name} is too large. Maximum size is 5MB.`);
+        return false;
+      }
+      return !files.some(existingFile => existingFile.name === newFile.name);
+    });
     
     setFiles(prev => [...prev, ...filteredFiles]);
     
@@ -54,25 +59,21 @@ const TransactionForm = ({ accountId }) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const getFileIcon = (type) => {
-    if (type.startsWith('image/')) return '🖼️';
-    if (type === 'application/pdf') return '📄';
-    return '📎';
-  };
-
   const handleSubmit = async () => {
+    setError(null);
+    
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      alert('Please enter a valid amount');
+      setError('Please enter a valid amount');
       return;
     }
 
     if (formData.type === 'in' && !formData.source.trim()) {
-      alert('Please enter the source of cash (where it came from)');
+      setError('Please enter the source of cash (where it came from)');
       return;
     }
 
-    if (formData.type === 'out' && !formData.paidTo.trim()) {
-      alert('Please enter who/where the cash was paid to');
+    if (formData.type === 'out' && !formData.paid_to.trim()) {
+      setError('Please enter who/where the cash was paid to');
       return;
     }
 
@@ -80,44 +81,81 @@ const TransactionForm = ({ accountId }) => {
 
     try {
       const transactionData = {
+        account_id: accountId,
         amount: parseFloat(formData.amount),
         type: formData.type,
-        date: formData.date,
+        transaction_date: formData.transaction_date,
         description: formData.description.trim(),
-        files: files
       };
 
-      // Add source/paidTo based on type
+      // Add source/paid_to based on type
       if (formData.type === 'in') {
         transactionData.source = formData.source.trim();
       } else {
-        transactionData.paidTo = formData.paidTo.trim();
+        transactionData.paid_to = formData.paid_to.trim();
       }
 
-      await addTransaction(accountId, transactionData);
-
-      // Reset form
-      setFormData({
-        amount: '',
-        type: 'in',
-        date: new Date().toISOString().split('T')[0],
-        source: '',
-        paidTo: '',
-        description: '',
-      });
-      setFiles([]);
+      // Call the provided handler
+      const result = await onAddTransaction(transactionData);
+      
+      if (result && result.success) {
+        // Reset form
+        setFormData({
+          amount: '',
+          type: 'in',
+          transaction_date: new Date().toISOString().split('T')[0],
+          source: '',
+          paid_to: '',
+          description: '',
+        });
+        setFiles([]);
+        setError(null);
+        
+        // Refresh accounts to update balances
+        refreshAccounts();
+      } else {
+        setError(result?.message || 'Failed to add transaction');
+      }
 
     } catch (error) {
       console.error('Error adding transaction:', error);
-      alert(error.message || 'Error adding transaction. Please try again.');
+      setError(error.message || 'Error adding transaction. Please try again.');
     } finally {
       setUploading(false);
     }
   };
 
+  const getFileIcon = (type) => {
+    if (type.startsWith('image/')) return '🖼️';
+    if (type === 'application/pdf') return '📄';
+    return '📎';
+  };
+
+  const handleFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  if (!account) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6">
+        <p className="text-gray-500 text-center">Account not found</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-6">
       <h3 className="text-lg font-semibold mb-4">Add New Transaction</h3>
+      
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         {/* Amount */}
@@ -132,6 +170,7 @@ const TransactionForm = ({ accountId }) => {
             <input
               type="number"
               step="0.01"
+              min="0.01"
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -149,7 +188,7 @@ const TransactionForm = ({ accountId }) => {
               ...formData, 
               type: e.target.value,
               // Clear the other field when switching type
-              ...(e.target.value === 'in' ? { paidTo: '' } : { source: '' })
+              ...(e.target.value === 'in' ? { paid_to: '' } : { source: '' })
             })}
             className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
@@ -163,14 +202,14 @@ const TransactionForm = ({ accountId }) => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
           <input
             type="date"
-            value={formData.date}
-            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            value={formData.transaction_date}
+            onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           />
         </div>
       </div>
 
-      {/* Source/Paid To Fields - Now text inputs */}
+      {/* Source/Paid To Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {formData.type === 'in' ? (
           <div>
@@ -195,8 +234,8 @@ const TransactionForm = ({ accountId }) => {
             </label>
             <input
               type="text"
-              value={formData.paidTo}
-              onChange={(e) => setFormData({ ...formData, paidTo: e.target.value })}
+              value={formData.paid_to}
+              onChange={(e) => setFormData({ ...formData, paid_to: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Vendor Name, Service Provider, Expense Category, etc."
             />
@@ -219,67 +258,27 @@ const TransactionForm = ({ accountId }) => {
         />
       </div>
 
-      {/* File Upload Section */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Attachments (Optional)</label>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg cursor-pointer"
-          >
-            <Upload size={16} />
-            Add Files
-          </button>
-        </div>
-        
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
-          className="hidden"
-        />
-        
-        {/* File List */}
-        {files.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Paperclip size={16} className="text-gray-500" />
-                  <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                  <span className="text-xs text-gray-500">({formatFileSize(file.size)})</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="p-1 hover:bg-red-100 rounded text-red-600 cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <p className="text-xs text-gray-500 mt-2">
-          Supported: PDF, Images, Documents (Max 5MB each)
-        </p>
-      </div>
-
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
         disabled={uploading}
-        className={`w-full px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer ${
+        className={`w-full px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer flex items-center justify-center gap-2 ${
           uploading 
             ? 'bg-blue-400 cursor-not-allowed' 
             : 'bg-blue-600 hover:bg-blue-700 text-white'
         }`}
       >
-        {uploading ? 'Adding Transaction...' : 'Add Transaction'}
+        {uploading ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            Adding Transaction...
+          </>
+        ) : (
+          <>
+            <Save size={18} />
+            Add Transaction
+          </>
+        )}
       </button>
     </div>
   );

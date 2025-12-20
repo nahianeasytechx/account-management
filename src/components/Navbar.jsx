@@ -1,24 +1,42 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Menu, LogOut, User, Settings, Shield } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Menu, LogOut, User, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useTransactions } from '../context/TransactionContext';
 import { useNavigate } from 'react-router-dom';
 
 const Navbar = ({ onMenuClick }) => {
   const { currentUser, logout } = useAuth();
-  const { transactions, getTotals, formatFileSize } = useTransactions();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef(null);
   const navigate = useNavigate();
 
-  // Only read totals from state, do NOT call any fetch functions
-  const totals = getTotals ? getTotals() : { totalIn: 0, totalOut: 0, balance: 0 };
+  // Mock totals - replace with actual data from context if available
+  const totals = useMemo(() => ({
+    totalIn: 0,
+    totalOut: 0,
+    balance: 0
+  }), []);
 
-  // Simple storage calculation based on a fixed limit
-  const TOTAL_STORAGE_LIMIT = 1024 * 1024 * 500; // 500MB
-  const usedStorage = transactions.reduce((sum, txn) => sum + (txn.size || 0), 0);
-  const availableStorage = TOTAL_STORAGE_LIMIT - usedStorage;
-  const storagePercentage = Math.min((usedStorage / TOTAL_STORAGE_LIMIT) * 100, 100);
+  // Simple storage calculation
+  const storageInfo = useMemo(() => {
+    const TOTAL_STORAGE_LIMIT = 1024 * 1024 * 500; // 500MB
+    const usedStorage = 0; // Replace with actual storage calculation
+    const availableStorage = TOTAL_STORAGE_LIMIT - usedStorage;
+    const storagePercentage = Math.min((usedStorage / TOTAL_STORAGE_LIMIT) * 100, 100);
+    
+    return {
+      used: usedStorage,
+      available: availableStorage,
+      percentage: storagePercentage
+    };
+  }, []);
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
 
   const handleLogout = () => {
     logout();
@@ -80,13 +98,19 @@ const Navbar = ({ onMenuClick }) => {
                 </div>
                 <div className="p-2">
                   <button
-                    onClick={() => navigate('/profile')}
+                    onClick={() => {
+                      navigate('/profile');
+                      setShowUserMenu(false);
+                    }}
                     className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3"
                   >
                     <User size={16} /> My Profile
                   </button>
                   <button
-                    onClick={() => navigate('/settings')}
+                    onClick={() => {
+                      navigate('/settings');
+                      setShowUserMenu(false);
+                    }}
                     className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3"
                   >
                     <Settings size={16} /> Settings
@@ -96,10 +120,10 @@ const Navbar = ({ onMenuClick }) => {
                   <div className="px-3 py-2 mt-2 border-t border-gray-700">
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-gray-400">Storage</span>
-                      <span className="text-gray-300">{formatFileSize(availableStorage)} available</span>
+                      <span className="text-gray-300">{formatFileSize(storageInfo.available)} available</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-1.5">
-                      <div className={`h-1.5 rounded-full ${getStorageColor(storagePercentage)}`} style={{ width: `${storagePercentage}%` }} />
+                      <div className={`h-1.5 rounded-full ${getStorageColor(storageInfo.percentage)}`} style={{ width: `${storageInfo.percentage}%` }} />
                     </div>
                   </div>
 

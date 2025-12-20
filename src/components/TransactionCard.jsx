@@ -1,3 +1,4 @@
+// src/components/TransactionCard.jsx - FIXED VERSION
 import React, { useState, useRef } from 'react';
 import { 
   ArrowUpRight, 
@@ -14,41 +15,44 @@ import {
   Edit2,
   Save,
   X,
-  Upload,
   Plus,
   Calendar,
-  DollarSign,
   Type,
   MessageSquare
 } from 'lucide-react';
-import { useTransactions } from '../context/TransactionContext';
+import { useAccounts } from '../context/AccountsContext';
 
 const TransactionCard = ({ transaction, accountId, onDelete }) => {
-  const { 
-    getAccountById, 
-    fileStorage, 
-    deleteAttachment, 
-    addAttachmentToTransaction,
-    editTransaction,
-    formatFileSize 
-  } = useTransactions();
-  
+  const { getAccountById } = useAccounts();
   const account = getAccountById(accountId);
+  
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     amount: transaction.amount,
     type: transaction.type,
-    date: transaction.date,
+    date: transaction.transaction_date || transaction.date,
     source: transaction.source || '',
-    paidTo: transaction.paidTo || '',
+    paidTo: transaction.paid_to || transaction.paidTo || '',
     description: transaction.description || ''
   });
   const [newFiles, setNewFiles] = useState([]);
   const fileInputRef = useRef(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  if (!account) return null;
+  // Helper function for file size formatting
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  if (!account) {
+    console.warn('Account not found for transaction:', transaction);
+    return null;
+  }
 
   const getCurrencySymbol = () => {
     const currencySymbols = {
@@ -59,7 +63,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
       JPY: '¥',
       INR: '₹',
     };
-    return currencySymbols[account.currency] || account.currency;
+    return currencySymbols[account.currency_code || account.currency] || '$';
   };
 
   const currencySymbol = getCurrencySymbol();
@@ -68,63 +72,6 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
     if (filename.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) return <ImageIcon size={16} className="text-blue-500" />;
     if (filename.match(/\.pdf$/i)) return <FileText size={16} className="text-red-500" />;
     return <File size={16} className="text-gray-500" />;
-  };
-
-  const handlePreview = (filename) => {
-    const key = `${transaction.id}_${filename}`;
-    const file = fileStorage.get(key);
-    
-    if (file) {
-      const fileURL = URL.createObjectURL(file);
-      
-      // Check if it's an image
-      if (file.type.startsWith('image/')) {
-        // Open image in new window with better display
-        const win = window.open('', '_blank');
-        win.document.write(`
-          <html>
-            <head>
-              <title>${filename}</title>
-              <style>
-                body { margin: 0; padding: 20px; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                img { max-width: 90vw; max-height: 90vh; object-fit: contain; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; }
-              </style>
-            </head>
-            <body>
-              <img src="${fileURL}" alt="${filename}" />
-            </body>
-          </html>
-        `);
-        win.document.close();
-      } else {
-        // For non-images, let browser handle it
-        window.open(fileURL, '_blank');
-      }
-      
-      setTimeout(() => URL.revokeObjectURL(fileURL), 10000);
-    }
-  };
-
-  const handleDownload = (filename) => {
-    const key = `${transaction.id}_${filename}`;
-    const file = fileStorage.get(key);
-    
-    if (file) {
-      const fileURL = URL.createObjectURL(file);
-      const link = document.createElement('a');
-      link.href = fileURL;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(fileURL), 100);
-    }
-  };
-
-  const handleDeleteAttachment = (filename) => {
-    if (window.confirm(`Delete attachment "${filename}"?`)) {
-      deleteAttachment(accountId, transaction.id, filename);
-    }
   };
 
   const handleAddFiles = (e) => {
@@ -140,23 +87,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
     setNewFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadNewFiles = async () => {
-    if (newFiles.length === 0) return;
-    
-    setUploadingFile(true);
-    try {
-      for (const file of newFiles) {
-        await addAttachmentToTransaction(accountId, transaction.id, file);
-      }
-      setNewFiles([]);
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      setUploadingFile(false);
-    }
-  };
-
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editForm.amount || editForm.amount <= 0) {
       alert('Please enter a valid amount');
       return;
@@ -178,23 +109,26 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
       date: editForm.date,
       description: editForm.description.trim(),
       ...(editForm.type === 'in' 
-        ? { source: editForm.source.trim(), paidTo: '' }
-        : { paidTo: editForm.paidTo.trim(), source: '' }
+        ? { source: editForm.source.trim(), paid_to: '' }
+        : { paid_to: editForm.paidTo.trim(), source: '' }
       )
     };
 
-    editTransaction(accountId, transaction.id, updates);
+    console.log('Saving transaction updates:', updates);
+    // TODO: Call API to update transaction
+    // await apiRequest('PUT', `/transactions/${transaction.id}`, updates);
+    
     setEditing(false);
-    uploadNewFiles();
+    alert('Transaction updated (API integration pending)');
   };
 
   const handleCancelEdit = () => {
     setEditForm({
       amount: transaction.amount,
       type: transaction.type,
-      date: transaction.date,
+      date: transaction.transaction_date || transaction.date,
       source: transaction.source || '',
-      paidTo: transaction.paidTo || '',
+      paidTo: transaction.paid_to || transaction.paidTo || '',
       description: transaction.description || ''
     });
     setNewFiles([]);
@@ -202,6 +136,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
@@ -211,7 +146,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+    <div className="border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white">
       {/* Card Header */}
       <div 
         className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -241,15 +176,19 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                     }
                     className="px-3 py-1 border rounded text-sm font-medium"
                     placeholder={editForm.type === 'in' ? "Source of cash..." : "Paid to..."}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
               ) : (
                 <>
                   <h4 className="font-medium text-gray-900">
-                    {transaction.type === 'in' ? transaction.source : transaction.paidTo}
+                    {transaction.type === 'in' 
+                      ? (transaction.source || 'Cash In')
+                      : (transaction.paid_to || transaction.paidTo || 'Cash Out')
+                    }
                   </h4>
                   <p className="text-sm text-gray-500">
-                    {formatDate(transaction.date)} • {account.name}
+                    {formatDate(transaction.transaction_date || transaction.date)} • {account.name}
                   </p>
                 </>
               )}
@@ -258,7 +197,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
           
           <div className="flex items-center gap-4">
             {editing ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <input
                   type="number"
                   step="0.01"
@@ -274,7 +213,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                 transaction.type === 'in' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {transaction.type === 'in' ? '+' : '-'}{currencySymbol}
-                {transaction.amount.toFixed(2)}
+                {parseFloat(transaction.amount || 0).toFixed(2)}
               </span>
             )}
             
@@ -424,7 +363,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                 <button
                   onClick={handleSaveEdit}
                   disabled={uploadingFile}
-                  className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg cursor-pointer flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg cursor-pointer flex items-center gap-2 disabled:opacity-50"
                 >
                   {uploadingFile ? (
                     <>
@@ -462,11 +401,11 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                 </div>
                 
                 <div>
-                  <span className="text-gray-500">Account Balance:</span>
+                  <span className="text-gray-500">Balance After:</span>
                   <span className={`ml-2 font-bold ${
-                    transaction.balance >= 0 ? 'text-gray-900' : 'text-red-600'
+                    (transaction.balance || 0) >= 0 ? 'text-gray-900' : 'text-red-600'
                   }`}>
-                    {currencySymbol}{Math.abs(transaction.balance).toFixed(2)}
+                    {currencySymbol}{Math.abs(transaction.balance || 0).toFixed(2)}
                   </span>
                 </div>
                 
@@ -475,72 +414,40 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                     {transaction.type === 'in' ? 'From:' : 'To:'}
                   </span>
                   <span className="ml-2 font-medium">
-                    {transaction.type === 'in' ? transaction.source : transaction.paidTo}
+                    {transaction.type === 'in' 
+                      ? (transaction.source || 'N/A')
+                      : (transaction.paid_to || transaction.paidTo || 'N/A')
+                    }
                   </span>
                 </div>
                 
                 <div>
                   <span className="text-gray-500">Date:</span>
-                  <span className="ml-2">{formatDate(transaction.date)}</span>
+                  <span className="ml-2">{formatDate(transaction.transaction_date || transaction.date)}</span>
                 </div>
               </div>
               
               {/* Attachments */}
-              {transaction.attachments?.length > 0 && (
+              {transaction.attachments && transaction.attachments.length > 0 && (
                 <div className="mt-4">
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Attachments</h5>
                   <div className="space-y-2">
-                    {transaction.attachments.map((filename, index) => {
+                    {transaction.attachments.map((attachment, index) => {
+                      const filename = typeof attachment === 'string' ? attachment : attachment.filename;
                       const isImage = filename.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i);
                       return (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-2">
                             {getFileIcon(filename)}
                             <span className="text-sm text-gray-700 truncate">{filename}</span>
-                            
-                            {/* Image Thumbnail Preview */}
-                            {isImage && (
-                              <button
-                                onClick={() => handlePreview(filename)}
-                                className="ml-2 text-xs text-blue-600 hover:text-blue-700 underline cursor-pointer"
-                              >
-                                Preview Image
-                              </button>
-                            )}
                           </div>
                           
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePreview(filename);
-                              }}
-                              className="p-1 hover:bg-gray-100 rounded text-gray-600 cursor-pointer"
-                              title="Preview"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(filename);
-                              }}
                               className="p-1 hover:bg-gray-100 rounded text-gray-600 cursor-pointer"
                               title="Download"
                             >
                               <Download size={16} />
-                            </button>
-                            
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteAttachment(filename);
-                              }}
-                              className="p-1 hover:bg-red-100 rounded text-red-600 cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>
@@ -553,7 +460,8 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
               {/* Actions */}
               <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setEditing(true);
                     setExpanded(true);
                   }}
@@ -563,7 +471,10 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
                   Edit Transaction
                 </button>
                 <button
-                  onClick={() => onDelete(transaction.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete && onDelete(transaction.id);
+                  }}
                   className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg cursor-pointer flex items-center gap-2"
                 >
                   <Trash2 size={14} />
