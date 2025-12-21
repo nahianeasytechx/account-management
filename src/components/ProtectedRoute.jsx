@@ -1,17 +1,21 @@
-// src/components/ProtectedRoute.jsx
-import React from 'react';
+// components/ProtectedRoute.js
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <div className="text-white text-center mt-10">Loading...</div>;
-  }
+  // Store the attempted location for redirecting after login
+  useEffect(() => {
+    if (!isAuthenticated) {
+      sessionStorage.setItem('redirectPath', location.pathname);
+    }
+  }, [isAuthenticated, location]);
 
-  if (!isAuthenticated()) {
+  if (!isAuthenticated) {
+    // Redirect to login with the return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

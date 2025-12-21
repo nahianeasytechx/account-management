@@ -1,112 +1,85 @@
-// src/components/Dashboard.jsx - PRODUCTION VERSION
-import React, { useEffect, useState, useCallback } from 'react';
-import { Trash2, Filter, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Filter } from 'lucide-react';
 import DashboardCards from './DashboardCards';
 import TransactionCard from './TransactionCard';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
-import { useAccounts } from '../context/AccountsContext';
 import { useTransactions } from '../context/TransactionContext';
 
 const Dashboard = () => {
   const { 
     accounts, 
     selectedAccountId, 
+    getAccountById, 
     deleteAccount,
-    getAccountById,
-  } = useAccounts();
-  
-  const { getDashboardSummary } = useTransactions();
+    getAllTransactions,
+    deleteTransaction 
+  } = useTransactions();
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [filterType, setFilterType] = useState('all');
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [filterType, setFilterType] = useState('all'); // 'all', 'in', 'out'
   
   const account = selectedAccountId !== 'all' ? getAccountById(selectedAccountId) : null;
+  const allTransactions = getAllTransactions();
+  
+  // Filter transactions based on selected view
+  let displayedTransactions = [];
+  
+  if (selectedAccountId === 'all') {
+    // Show all transactions from all accounts
+    displayedTransactions = allTransactions;
+  } else if (account) {
+    // Show only selected account's transactions
+    displayedTransactions = account.transactions.map(t => ({
+      ...t,
+      accountId: account.id,
+      accountName: account.name
+    }));
+  }
+  
+  // Apply type filter
+  if (filterType !== 'all') {
+    displayedTransactions = displayedTransactions.filter(
+      t => t.type === filterType
+    );
+  }
+  
+  // Sort by date (newest first)
+  displayedTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  // Memoize load function to prevent recreation on every render
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await getDashboardSummary(selectedAccountId, filterType);
-      
-      if (result.success) {
-        setDashboardData(result.data);
-      } else {
-        setError(result.message || 'Failed to load dashboard data');
-      }
-    } catch (error) {
-      console.error('Failed to load dashboard:', error);
-      setError(error.message || 'An error occurred while loading dashboard');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedAccountId, filterType, getDashboardSummary]);
-
-  // Load data only when dependencies actually change
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  const handleRefresh = () => {
-    loadDashboardData();
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (account) {
-      const result = await deleteAccount(account.id);
-      if (result.success) {
+      if (deleteAccount(account.id)) {
         setShowDeleteModal(false);
       }
     }
   };
 
-  const handleDeleteTransaction = async (transactionId) => {
+  const handleDeleteTransaction = (transactionId) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      // TODO: Implement delete transaction API call
-      console.log('Delete transaction:', transactionId);
-      loadDashboardData(); // Refresh after delete
+      deleteTransaction(selectedAccountId, transactionId);
     }
   };
 
-  // Safely extract data with defaults
-  const displayedTransactions = dashboardData?.transactions || [];
-  const summary = dashboardData?.summary || {
-    total_cash_in: 0,
-    total_cash_out: 0,
-    total_balance: 0,
-    total_transactions: 0,
+  // Calculate totals for dashboard cards
+  const calculateTotals = () => {
+    const transactionsToCalculate = selectedAccountId === 'all' 
+      ? allTransactions 
+      : account?.transactions || [];
+    
+    return {
+      totalIn: transactionsToCalculate
+        .filter(t => t.type === 'in')
+        .reduce((sum, t) => sum + t.amount, 0),
+      totalOut: transactionsToCalculate
+        .filter(t => t.type === 'out')
+        .reduce((sum, t) => sum + t.amount, 0),
+      balance: transactionsToCalculate.reduce((sum, t) => 
+        t.type === 'in' ? sum + t.amount : sum - t.amount, 0
+      )
+    };
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-        <span className="ml-3 text-gray-600">Loading dashboard...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full">
-          <h3 className="text-red-800 font-bold mb-2">Error Loading Dashboard</h3>
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={handleRefresh}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
-          >
-            <RefreshCw size={16} />
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const totals = calculateTotals();
 
   return (
     <div>
@@ -114,44 +87,31 @@ const Dashboard = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">
-            {selectedAccountId === 'all' 
-              ? 'Dashboard - All Accounts' 
-              : `Dashboard - ${account?.name || 'Account'}`
-            }
+            {selectedAccountId === 'all' ? 'Dashboard - All Accounts' : `Dashboard - ${account?.name}`}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             {selectedAccountId === 'all' 
               ? `Viewing all ${accounts.length} accounts` 
-              : `${summary.total_transactions} transactions in this account`
-            }
+              : `${account?.transactions?.length || 0} transactions in this account`}
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
+        {account && (
           <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="cursor-pointer flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            onClick={() => setShowDeleteModal(true)}
+            className="cursor-pointer flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            <Trash2 size={16} />
+            Delete {account.name}
           </button>
-          
-          {account && (
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="cursor-pointer flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 size={16} />
-              Delete {account.name}
-            </button>
-          )}
-        </div>
+        )}
       </div>
       
       {/* Dashboard Cards */}
       <div className="mb-8">
-        <DashboardCards summary={summary} />
+        <DashboardCards 
+          accountId={selectedAccountId === 'all' ? null : selectedAccountId}
+        />
       </div>
       
       {/* Transaction Cards Section */}
@@ -201,7 +161,7 @@ const Dashboard = () => {
           </div>
           
           <span className="text-sm text-gray-500">
-            {displayedTransactions.length} transaction{displayedTransactions.length !== 1 ? 's' : ''}
+            {displayedTransactions.length} transactions
           </span>
         </div>
         
@@ -211,72 +171,74 @@ const Dashboard = () => {
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}
-                accountId={transaction.account_id}
+                accountId={transaction.accountId}
                 onDelete={handleDeleteTransaction}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <div className="text-gray-400 mb-2">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
             <p className="text-gray-500">
               {filterType !== 'all' 
                 ? `No ${filterType === 'in' ? 'cash in' : 'cash out'} transactions found`
-                : 'No transactions yet'
-              }
+                : 'No transactions yet'}
             </p>
             <p className="text-sm text-gray-400 mt-1">
               {selectedAccountId === 'all' 
                 ? 'Transactions will appear here from all accounts'
-                : 'Add your first transaction from the Ledger Details page'
-              }
+                : 'Add your first transaction from the Ledger Details page'}
             </p>
           </div>
         )}
       </div>
       
-      {/* Summary Stats - Only show if there are transactions */}
+      {/* Summary Stats */}
       {displayedTransactions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Total Cash In</h4>
             <p className="text-2xl font-bold text-green-600">
-              ${summary.total_cash_in.toFixed(2)}
+              ৳{displayedTransactions
+                .filter(t => t.type === 'in')
+                .reduce((sum, t) => sum + t.amount, 0)
+                .toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {displayedTransactions.filter(t => t.type === 'in').length} transaction{displayedTransactions.filter(t => t.type === 'in').length !== 1 ? 's' : ''}
+              {displayedTransactions.filter(t => t.type === 'in').length} transactions
             </p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Total Cash Out</h4>
             <p className="text-2xl font-bold text-red-600">
-              ${summary.total_cash_out.toFixed(2)}
+              ৳{displayedTransactions
+                .filter(t => t.type === 'out')
+                .reduce((sum, t) => sum + t.amount, 0)
+                .toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {displayedTransactions.filter(t => t.type === 'out').length} transaction{displayedTransactions.filter(t => t.type === 'out').length !== 1 ? 's' : ''}
+              {displayedTransactions.filter(t => t.type === 'out').length} transactions
             </p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Net Balance</h4>
             <p className={`text-2xl font-bold ${
-              summary.total_balance >= 0 ? 'text-gray-900' : 'text-red-600'
+              displayedTransactions.reduce((sum, t) => 
+                t.type === 'in' ? sum + t.amount : sum - t.amount, 0
+              ) >= 0 ? 'text-gray-900' : 'text-red-600'
             }`}>
-              ${Math.abs(summary.total_balance).toFixed(2)}
+              ৳{Math.abs(displayedTransactions.reduce((sum, t) => 
+                t.type === 'in' ? sum + t.amount : sum - t.amount, 0
+              )).toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Current balance
+              Displayed transactions only
             </p>
           </div>
         </div>
       )}
 
-      {/* Delete Account Modal */}
       {account && (
         <DeleteConfirmationModal
           isOpen={showDeleteModal}
@@ -289,4 +251,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard
+export default Dashboard;

@@ -1,65 +1,84 @@
-// src/components/DashboardCards.jsx
 import React from 'react';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { useTransactions } from '../context/TransactionContext';
 
-const DashboardCards = ({ summary }) => {
-  // Safely extract summary data with defaults
-  const totalCashIn = summary?.total_cash_in || 0;
-  const totalCashOut = summary?.total_cash_out || 0;
-  const totalBalance = summary?.total_balance || 0;
-  const totalTransactions = summary?.total_transactions || 0;
+const DashboardCards = ({ accountId = null }) => {
+  const { accounts, getTotals } = useTransactions();
+  
+  // Calculate totals - either for specific account or all accounts
+  const calculateAccountTotals = () => {
+    let totalIn = 0;
+    let totalOut = 0;
+
+    if (accountId) {
+      // Calculate for specific account
+      const account = accounts.find(acc => acc.id === accountId);
+      if (account) {
+        account.transactions.forEach(t => {
+          if (t.type === 'in') totalIn += t.amount;
+          else totalOut += t.amount;
+        });
+      }
+    } else {
+      // Calculate for all accounts (global)
+      const totals = getTotals();
+      totalIn = totals.totalIn;
+      totalOut = totals.totalOut;
+    }
+
+    return {
+      totalIn,
+      totalOut,
+      balance: totalIn - totalOut,
+    };
+  };
+
+  const { totalIn, totalOut, balance } = calculateAccountTotals();
+
+  const currencySymbol = '৳';
+
+  const cards = [
+    {
+      title: accountId ? 'Account Cash In' : 'Total Cash In',
+      amount: totalIn,
+      icon: TrendingUp,
+      color: 'bg-green-50 text-green-600',
+      bgColor: 'bg-green-100'
+    },
+    {
+      title: accountId ? 'Account Cash Out' : 'Total Cash Out',
+      amount: totalOut,
+      icon: TrendingDown,
+      color: 'bg-red-50 text-red-600',
+      bgColor: 'bg-red-100'
+    },
+    {
+      title: accountId ? 'Account Balance' : 'Remaining Balance',
+      amount: balance,
+      icon: Wallet,
+      color: balance >= 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600',
+      bgColor: balance >= 0 ? 'bg-blue-100' : 'bg-red-100'
+    }
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Total Cash In Card */}
-      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="p-3 bg-green-500 rounded-lg">
-            <TrendingUp className="text-white" size={24} />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {cards.map((card, idx) => (
+        <div key={idx} className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">{card.title}</h3>
+              <p className="text-xs text-gray-500 mt-1">BDT Account</p>
+            </div>
+            <div className={`p-3 rounded-lg ${card.bgColor}`}>
+              <card.icon className={card.color} size={24} />
+            </div>
           </div>
+          <p className={`text-3xl font-bold ${card.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+            {currencySymbol}{Math.abs(card.amount).toFixed(2)}
+          </p>
         </div>
-        <h3 className="text-sm font-medium text-green-700 mb-1">Total Cash In</h3>
-        <p className="text-3xl font-bold text-green-900">
-          ${totalCashIn.toFixed(2)}
-        </p>
-        <p className="text-xs text-green-600 mt-2">
-          Income transactions
-        </p>
-      </div>
-
-      {/* Total Cash Out Card */}
-      <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6 border border-red-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="p-3 bg-red-500 rounded-lg">
-            <TrendingDown className="text-white" size={24} />
-          </div>
-        </div>
-        <h3 className="text-sm font-medium text-red-700 mb-1">Total Cash Out</h3>
-        <p className="text-3xl font-bold text-red-900">
-          ${totalCashOut.toFixed(2)}
-        </p>
-        <p className="text-xs text-red-600 mt-2">
-          Expense transactions
-        </p>
-      </div>
-
-      {/* Account Balance Card */}
-      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="p-3 bg-blue-500 rounded-lg">
-            <Wallet className="text-white" size={24} />
-          </div>
-        </div>
-        <h3 className="text-sm font-medium text-blue-700 mb-1">Account Balance</h3>
-        <p className={`text-3xl font-bold ${
-          totalBalance >= 0 ? 'text-blue-900' : 'text-red-900'
-        }`}>
-          ${totalBalance.toFixed(2)}
-        </p>
-        <p className="text-xs text-blue-600 mt-2">
-          {totalTransactions} total transactions
-        </p>
-      </div>
+      ))}
     </div>
   );
 };

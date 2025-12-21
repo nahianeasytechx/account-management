@@ -1,108 +1,136 @@
-// src/context/AuthContext.jsx
+// context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  API_ENDPOINTS, 
-  get, 
-  post, 
-  setTokens, 
-  clearTokens, 
-  isAuthenticated as checkAuth,
-  handleApiError
-} from '../config/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [users, setUsers] = useState(() => {
+    const saved = localStorage.getItem('ledgerUsers');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'demo-user',
+        username: 'demo@example.com',
+        email: 'demo@example.com',
+        name: 'Demo User',
+        password: 'demo123',
+        createdAt: new Date().toISOString()
+      }
+    ];
+  });
 
-  // Initialize auth state on mount
+  // Save users to localStorage
   useEffect(() => {
-    const initializeAuth = async () => {
-      if (!checkAuth()) {
-        setLoading(false);
-        return;
-      }
+    localStorage.setItem('ledgerUsers', JSON.stringify(users));
+  }, [users]);
 
-      try {
-        const response = await get(API_ENDPOINTS.AUTH_ME);
-        let userData = response?.data || response;
+  // Save current user to localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
 
-        if (userData?.id || userData?.email) {
-          setCurrentUser(userData);
-        } else {
-          clearTokens();
-        }
-      } catch (error) {
-        clearTokens();
-        console.error('Auth initialization failed:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-  }, []);
-
-  // Function to check authentication
-  const isAuthenticated = () => !!currentUser;
-
-  // Login function
-  const login = async (email, password) => {
+  const login = (username, password) => {
     try {
-      const response = await post(API_ENDPOINTS.AUTH_LOGIN, { email, password });
-
-      if (response.success && response.data?.user && response.data?.access_token) {
-        setTokens(response.data.access_token, response.data.refresh_token);
-        setCurrentUser(response.data.user);
-
-        return {
-          success: true,
-          message: response.message,
-          user: response.data.user
+      // Check demo user
+      if (username === 'demo@example.com' && password === 'demo123') {
+        const demoUser = {
+          id: 'demo-user',
+          username: 'demo@example.com',
+          email: 'demo@example.com',
+          name: 'Demo User'
         };
-      } else {
-        return { success: false, message: 'Invalid server response format' };
+        setCurrentUser(demoUser);
+        return { success: true, message: 'Login successful' };
       }
+
+      // Check registered users
+      const user = users.find(
+        u => (u.username === username || u.email === username) && 
+        u.password === password
+      );
+
+      if (user) {
+        const { password, ...userWithoutPassword } = user;
+        setCurrentUser(userWithoutPassword);
+        return { success: true, message: 'Login successful' };
+      }
+
+      return { success: false, message: 'Invalid credentials' };
     } catch (error) {
-      return { success: false, message: error.message || 'Login failed' };
+      return { success: false, message: 'Login failed' };
     }
   };
 
-  // Logout function
-  const logout = async () => {
+  const register = (userData) => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        await post(API_ENDPOINTS.AUTH_LOGOUT, { refresh_token: refreshToken }).catch(() => {});
+      // Check if user already exists
+      const existingUser = users.find(
+        u => u.email === userData.email || u.username === userData.username
+      );
+
+      if (existingUser) {
+        return { success: false, message: 'User already exists' };
       }
-    } finally {
-      clearTokens();
-      setCurrentUser(null);
-    }
-  };
 
-  // Register function
-  const register = async (userData) => {
-    try {
-      const response = await post(API_ENDPOINTS.AUTH_REGISTER, {
-        name: userData.name,
-        email: userData.email,
-        password: userData.password,
-      }, { skipAuth: true });
-
-      return {
-        success: response.success !== false,
-        message: response.message || 'Registration successful',
-        data: response.data || null
+      const newUser = {
+        id: `user-${Date.now()}`,
+        ...userData,
+        createdAt: new Date().toISOString()
       };
+
+      setUsers([...users, newUser]);
+      
+      const { password, ...userWithoutPassword } = newUser;
+      setCurrentUser(userWithoutPassword);
+      
+      return { success: true, message: 'Registration successful' };
     } catch (error) {
-      return { success: false, message: handleApiError(error, 'Registration failed') };
+      return { success: false, message: 'Registration failed' };
     }
   };
+
+  const logout = () => {
+    setCurrentUser(null);
+    return { success: true, message: 'Logged out successfully' };
+  };
+
+  const updateUser = (updatedData) => {
+    if (!currentUser) return { success: false, message: 'No user logged in' };
+    
+    try {
+      const updatedUsers = users.map(u => 
+        u.id === currentUser.id ? { ...u, ...updatedData } : u
+      );
+      setUsers(updatedUsers);
+      
+      const updatedUser = { ...currentUser, ...updatedData };
+      setCurrentUser(updatedUser);
+      
+      return { success: true, message: 'Profile updated' };
+    } catch (error) {
+      return { success: false, message: 'Update failed' };
+    }
+  };
+
+  const isAuthenticated = !!currentUser;
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, isAuthenticated, login, logout, register }}>
+    <AuthContext.Provider value={{
+      currentUser,
+      isAuthenticated,
+      login,
+      register,
+      logout,
+      updateUser,
+      users
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -113,5 +141,3 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
-
-export default AuthContext;

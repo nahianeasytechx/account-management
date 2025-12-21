@@ -1,4 +1,3 @@
-// src/context/AccountsContext.jsx - UPDATED
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiRequest, handleApiError } from '../config/api';
 import toast from 'react-hot-toast';
@@ -34,7 +33,12 @@ export const AccountsProvider = ({ children }) => {
 
   const createAccount = async (accountData) => {
     try {
-      const response = await apiRequest('POST', '/accounts', accountData);
+      // Always create account with BDT currency
+      const dataWithBDT = {
+        ...accountData,
+        currency: 'BDT' // Force BDT currency
+      };
+      const response = await apiRequest('POST', '/accounts', dataWithBDT);
       const newAccount = response.data;
       setAccounts(prev => [...prev, newAccount]);
       toast.success(response.message || 'Account created successfully');
@@ -47,7 +51,9 @@ export const AccountsProvider = ({ children }) => {
 
   const updateAccount = async (accountId, updates) => {
     try {
-      const response = await apiRequest('PUT', `/accounts/${accountId}`, updates);
+      // Remove currency from updates if present (we only use BDT)
+      const { currency, ...filteredUpdates } = updates;
+      const response = await apiRequest('PUT', `/accounts/${accountId}`, filteredUpdates);
       const updatedAccount = response.data;
       setAccounts(prev => prev.map(acc => 
         acc.id === accountId ? { ...acc, ...updatedAccount } : acc
