@@ -18,7 +18,15 @@ export const AuthProvider = ({ children }) => {
         name: 'Demo User',
         password: 'demo123',
         createdAt: new Date().toISOString()
-      }
+      },
+      {
+        id: 'jshon doe',
+        username: 'jshon@example.com',
+        email: 'jshon@example.com',
+        name: 'jshon doe',
+        password: 'doe123',
+        createdAt: new Date().toISOString()
+      },
     ];
   });
 
@@ -36,37 +44,56 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  const login = (username, password) => {
-    try {
-      // Check demo user
-      if (username === 'demo@example.com' && password === 'demo123') {
-        const demoUser = {
-          id: 'demo-user',
-          username: 'demo@example.com',
-          email: 'demo@example.com',
-          name: 'Demo User'
-        };
-        setCurrentUser(demoUser);
-        return { success: true, message: 'Login successful' };
-      }
+const login = (username, password) => {
+  try {
+    const demoUsers = [
+      {
+        id: 'demo-user',
+        username: 'demo@example.com',
+        email: 'demo@example.com',
+        name: 'Demo User',
+        password: 'demo123',
+      },
+      {
+        id: 'jshon-doe',
+        username: 'jshon@example.com',
+        email: 'jshon@example.com',
+        name: 'Jshon Doe',
+        password: 'doe123',
+      },
+    ];
 
-      // Check registered users
-      const user = users.find(
-        u => (u.username === username || u.email === username) && 
+    const demoUser = demoUsers.find(
+      u =>
+        (u.username === username || u.email === username) &&
         u.password === password
-      );
+    );
 
-      if (user) {
-        const { password, ...userWithoutPassword } = user;
-        setCurrentUser(userWithoutPassword);
-        return { success: true, message: 'Login successful' };
-      }
-
-      return { success: false, message: 'Invalid credentials' };
-    } catch (error) {
-      return { success: false, message: 'Login failed' };
+    if (demoUser) {
+      const { password, ...userWithoutPassword } = demoUser;
+      setCurrentUser(userWithoutPassword);
+      return { success: true, message: 'Login successful' };
     }
-  };
+
+    // Check registered users
+    const user = users.find(
+      u =>
+        (u.username === username || u.email === username) &&
+        u.password === password
+    );
+
+    if (user) {
+      const { password, ...userWithoutPassword } = user;
+      setCurrentUser(userWithoutPassword);
+      return { success: true, message: 'Login successful' };
+    }
+
+    return { success: false, message: 'Invalid credentials' };
+  } catch (error) {
+    return { success: false, message: 'Login failed' };
+  }
+};
+
 
   const register = (userData) => {
     try {

@@ -32,7 +32,7 @@ const Navbar = ({ onMenuClick }) => {
   const totals = getTotals();
 
   return (
-    <nav className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700 px-4 py-3 fixed top-0 left-0 right-0 z-50 shadow-lg">
+    <nav className="bg-linear-to-r from-gray-900 to-gray-800 border-b border-gray-700 px-4 py-3 fixed top-0 left-0 right-0 z-50 shadow-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -43,7 +43,7 @@ const Navbar = ({ onMenuClick }) => {
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">L</span>
             </div>
             <h1 className="text-xl font-bold text-white">Ledger Accounts</h1>

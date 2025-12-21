@@ -1,130 +1,118 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiRequest, handleApiError } from '../config/api';
-import toast from 'react-hot-toast';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from 'react';
+import { useAuth } from './AuthContext';
 
 const AccountsContext = createContext();
 
 export const AccountsProvider = ({ children }) => {
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const { currentUser, isAuthenticated } = useAuth();
+  const userId = currentUser?.id;
 
-  // Use useCallback to memoize refreshAccounts
-  const refreshAccounts = useCallback(async () => {
+  // Fixed: Ensure storageKey properly reflects user id
+  const storageKey = useMemo(
+    () => (userId ? `ledger-accounts-${userId}` : null),
+    [userId]
+  );
+
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  /* ===============================
+     LOAD USER DATA
+  =============================== */
+  useEffect(() => {
+    // Fixed: Clear data when no user is logged in
+    if (!isAuthenticated || !userId) {
+      setAccounts([]);
+      setSelectedAccountId(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!storageKey) return;
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await apiRequest('GET', '/accounts');
-      setAccounts(response.data || []);
+      const saved = localStorage.getItem(storageKey);
+      const parsed = saved ? JSON.parse(saved) : [];
+      
+      setAccounts(parsed);
+      setSelectedAccountId(parsed[0]?.id || null);
     } catch (error) {
-      handleApiError(error, 'Failed to load accounts');
+      console.error('Error loading accounts:', error);
+      setAccounts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [storageKey, isAuthenticated, userId]); // Added isAuthenticated and userId to dependencies
 
+  /* ===============================
+     SAVE USER DATA
+  =============================== */
   useEffect(() => {
-    refreshAccounts();
-  }, [refreshAccounts]);
-
-  const getAccountById = useCallback(
-    (id) => accounts.find(acc => acc.id === id) || null,
-    [accounts]
-  );
-
-  const createAccount = async (accountData) => {
+    // Fixed: Only save if user is authenticated
+    if (!isAuthenticated || !storageKey) return;
+    
     try {
-      // Always create account with BDT currency
-      const dataWithBDT = {
-        ...accountData,
-        currency: 'BDT' // Force BDT currency
-      };
-      const response = await apiRequest('POST', '/accounts', dataWithBDT);
-      const newAccount = response.data;
-      setAccounts(prev => [...prev, newAccount]);
-      toast.success(response.message || 'Account created successfully');
-      return { success: true, data: newAccount };
+      localStorage.setItem(storageKey, JSON.stringify(accounts));
     } catch (error) {
-      const message = handleApiError(error, 'Failed to create account');
-      return { success: false, message };
+      console.error('Error saving accounts:', error);
+    }
+  }, [accounts, storageKey, isAuthenticated]);
+
+  /* ===============================
+     CLEAR DATA ON LOGOUT
+  =============================== */
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Clear local state when user logs out
+      setAccounts([]);
+      setSelectedAccountId(null);
+    }
+  }, [isAuthenticated]);
+
+  /* ===============================
+     ACCOUNT ACTIONS
+  =============================== */
+
+  const createAccount = (name) => {
+    const newAccount = {
+      id: Date.now().toString(),
+      name,
+      currency: 'BDT',
+      transactions: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    setAccounts((prev) => [...prev, newAccount]);
+    setSelectedAccountId(newAccount.id);
+  };
+
+  const updateAccount = (accountId, updates) => {
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId ? { ...acc, ...updates } : acc
+      )
+    );
+  };
+
+  const deleteAccount = (accountId) => {
+    setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+
+    if (selectedAccountId === accountId) {
+      const remainingAccounts = accounts.filter((a) => a.id !== accountId);
+      setSelectedAccountId(remainingAccounts[0]?.id || null);
     }
   };
 
-  const updateAccount = async (accountId, updates) => {
-    try {
-      // Remove currency from updates if present (we only use BDT)
-      const { currency, ...filteredUpdates } = updates;
-      const response = await apiRequest('PUT', `/accounts/${accountId}`, filteredUpdates);
-      const updatedAccount = response.data;
-      setAccounts(prev => prev.map(acc => 
-        acc.id === accountId ? { ...acc, ...updatedAccount } : acc
-      ));
-      toast.success(response.message || 'Account updated successfully');
-      return { success: true, data: updatedAccount };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to update account');
-      return { success: false, message };
-    }
-  };
-
-  const deleteAccount = async (accountId) => {
-    try {
-      const response = await apiRequest('DELETE', `/accounts/${accountId}`);
-      setAccounts(prev => prev.filter(acc => acc.id !== accountId));
-      
-      // If the deleted account was selected, reset to 'all'
-      if (selectedAccountId === accountId) {
-        setSelectedAccountId('all');
-      }
-      
-      toast.success(response.message || 'Account deleted successfully');
-      return { success: true };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to delete account');
-      return { success: false, message };
-    }
-  };
-
-  const getAccountBalance = async (accountId) => {
-    try {
-      const response = await apiRequest('GET', `/accounts/${accountId}/balance`);
-      return { success: true, data: response.data };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to load account balance');
-      return { success: false, message };
-    }
-  };
-
-  const getLedgerData = async (accountId) => {
-    try {
-      const response = await apiRequest('GET', `/ledger/${accountId}`);
-      return { success: true, data: response.data };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to load ledger data');
-      return { success: false, message };
-    }
-  };
-
-  const getAccountSummary = async (accountId) => {
-    try {
-      const response = await apiRequest('GET', `/ledger/${accountId}/summary`);
-      return { success: true, data: response.data };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to load account summary');
-      return { success: false, message };
-    }
-  };
-
-  const getAccountTransactions = async (accountId, filters = {}) => {
-    try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const url = `/ledger/${accountId}/transactions${queryParams ? `?${queryParams}` : ''}`;
-      const response = await apiRequest('GET', url);
-      return { success: true, data: response.data };
-    } catch (error) {
-      const message = handleApiError(error, 'Failed to load transactions');
-      return { success: false, message };
-    }
-  };
+  const getAccountById = (id) =>
+    accounts.find((acc) => acc.id === id) || null;
 
   return (
     <AccountsContext.Provider
@@ -133,15 +121,11 @@ export const AccountsProvider = ({ children }) => {
         loading,
         selectedAccountId,
         setSelectedAccountId,
-        refreshAccounts,
         createAccount,
         updateAccount,
         deleteAccount,
         getAccountById,
-        getAccountBalance,
-        getLedgerData,
-        getAccountSummary,
-        getAccountTransactions
+        setAccounts, // Fixed: Expose setAccounts if TransactionContext needs it
       }}
     >
       {children}
@@ -151,6 +135,8 @@ export const AccountsProvider = ({ children }) => {
 
 export const useAccounts = () => {
   const context = useContext(AccountsContext);
-  if (!context) throw new Error('useAccounts must be used within AccountsProvider');
+  if (!context) {
+    throw new Error('useAccounts must be used within AccountsProvider');
+  }
   return context;
 };

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTransactions } from '../context/TransactionContext';
 
 const TransactionForm = ({ accountId }) => {
-  const { addTransaction, getAccountById } = useTransactions();
+  const { addTransaction, getAccountById, formatFileSize } = useTransactions();
   const account = getAccountById(accountId);
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     amount: '',
@@ -14,9 +15,23 @@ const TransactionForm = ({ accountId }) => {
     description: '',
   });
   
+  const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  const currencySymbol = '৳';
+  const getCurrencySymbol = () => {
+    if (!account) return '$';
+    const currencySymbols = {
+      BDT: '৳',
+    };
+    return currencySymbols[account.currency] || account.currency;
+  };
+
+  const currencySymbol = getCurrencySymbol();
+
+
+
+
+
 
   const handleSubmit = async () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
@@ -42,6 +57,7 @@ const TransactionForm = ({ accountId }) => {
         type: formData.type,
         date: formData.date,
         description: formData.description.trim(),
+        files: files
       };
 
       // Add source/paidTo based on type
@@ -62,6 +78,7 @@ const TransactionForm = ({ accountId }) => {
         paidTo: '',
         description: '',
       });
+      setFiles([]);
 
     } catch (error) {
       console.error('Error adding transaction:', error);
@@ -164,7 +181,7 @@ const TransactionForm = ({ accountId }) => {
       </div>
 
       {/* Description */}
-      <div className="mb-6">
+      <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
         <textarea
           value={formData.description}
@@ -174,6 +191,8 @@ const TransactionForm = ({ accountId }) => {
           rows="2"
         />
       </div>
+
+
 
       {/* Submit Button */}
       <button
