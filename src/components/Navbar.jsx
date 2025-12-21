@@ -116,51 +116,7 @@ const Navbar = ({ onMenuClick }) => {
                   </div>
                 </div>
                 
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigate('/profile');
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3 cursor-pointer transition-colors"
-                  >
-                    <User size={16} />
-                    <span>My Profile</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigate('/settings');
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3 cursor-pointer transition-colors"
-                  >
-                    <Settings size={16} />
-                    <span>Settings</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigate('/security');
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3 cursor-pointer transition-colors"
-                  >
-                    <Shield size={16} />
-                    <span>Security</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigate('/help');
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-gray-750 rounded-lg flex items-center gap-3 cursor-pointer transition-colors"
-                  >
-                    <HelpCircle size={16} />
-                    <span>Help & Support</span>
-                  </button>
-                  
+                <div className="p-2">           
                   <div className="border-t border-gray-700 mt-2 pt-2">
                     <button
                       onClick={handleLogout}

@@ -1,5 +1,5 @@
-// context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiRequest } from './api';
 
 const AuthContext = createContext();
 
@@ -8,156 +8,63 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('currentUser');
     return saved ? JSON.parse(saved) : null;
   });
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('ledgerUsers');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'demo-user',
-        username: 'demo@example.com',
-        email: 'demo@example.com',
-        name: 'Demo User',
-        password: 'demo123',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'jshon doe',
-        username: 'jshon@example.com',
-        email: 'jshon@example.com',
-        name: 'jshon doe',
-        password: 'doe123',
-        createdAt: new Date().toISOString()
-      },
-    ];
-  });
+  
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Save users to localStorage
+  // Verify token on mount
   useEffect(() => {
-    localStorage.setItem('ledgerUsers', JSON.stringify(users));
-  }, [users]);
-
-  // Save current user to localStorage
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('currentUser');
-    }
-  }, [currentUser]);
-
-const login = (username, password) => {
-  try {
-    const demoUsers = [
-      {
-        id: 'demo-user',
-        username: 'demo@example.com',
-        email: 'demo@example.com',
-        name: 'Demo User',
-        password: 'demo123',
-      },
-      {
-        id: 'jshon-doe',
-        username: 'jshon@example.com',
-        email: 'jshon@example.com',
-        name: 'Jshon Doe',
-        password: 'doe123',
-      },
-    ];
-
-    const demoUser = demoUsers.find(
-      u =>
-        (u.username === username || u.email === username) &&
-        u.password === password
-    );
-
-    if (demoUser) {
-      const { password, ...userWithoutPassword } = demoUser;
-      setCurrentUser(userWithoutPassword);
-      return { success: true, message: 'Login successful' };
-    }
-
-    // Check registered users
-    const user = users.find(
-      u =>
-        (u.username === username || u.email === username) &&
-        u.password === password
-    );
-
-    if (user) {
-      const { password, ...userWithoutPassword } = user;
-      setCurrentUser(userWithoutPassword);
-      return { success: true, message: 'Login successful' };
-    }
-
-    return { success: false, message: 'Invalid credentials' };
-  } catch (error) {
-    return { success: false, message: 'Login failed' };
-  }
-};
-
-
-  const register = (userData) => {
-    try {
-      // Check if user already exists
-      const existingUser = users.find(
-        u => u.email === userData.email || u.username === userData.username
-      );
-
-      if (existingUser) {
-        return { success: false, message: 'User already exists' };
+    const verifyToken = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const data = await apiRequest('auth.php', 'POST', { action: 'verify' });
+        if (!data.success) {
+          // Token invalid, clear everything
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
+          setCurrentUser(null);
+        }
       }
+      setIsLoading(false);
+    };
 
-      const newUser = {
-        id: `user-${Date.now()}`,
-        ...userData,
-        createdAt: new Date().toISOString()
-      };
+    verifyToken();
+  }, []);
 
-      setUsers([...users, newUser]);
-      
-      const { password, ...userWithoutPassword } = newUser;
-      setCurrentUser(userWithoutPassword);
-      
-      return { success: true, message: 'Registration successful' };
-    } catch (error) {
-      return { success: false, message: 'Registration failed' };
-    }
+  const login = async (username, password) => {
+    const data = await apiRequest('auth.php', 'POST', { action: 'login', username, password });
+    if (!data.success) return { success: false, message: data.message };
+
+    setCurrentUser(data.data.user);
+    localStorage.setItem('currentUser', JSON.stringify(data.data.user));
+    localStorage.setItem('token', data.data.token);
+    return { success: true, message: 'Login successful' };
+  };
+
+  const register = async ({ username, email, password, name }) => {
+    const data = await apiRequest('auth.php', 'POST', { action: 'register', username, email, password, name });
+    if (!data.success) return { success: false, message: data.message };
+
+    setCurrentUser(data.data.user);
+    localStorage.setItem('currentUser', JSON.stringify(data.data.user));
+    localStorage.setItem('token', data.data.token);
+    return { success: true, message: 'Registration successful' };
   };
 
   const logout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('token');
     return { success: true, message: 'Logged out successfully' };
-  };
-
-  const updateUser = (updatedData) => {
-    if (!currentUser) return { success: false, message: 'No user logged in' };
-    
-    try {
-      const updatedUsers = users.map(u => 
-        u.id === currentUser.id ? { ...u, ...updatedData } : u
-      );
-      setUsers(updatedUsers);
-      
-      const updatedUser = { ...currentUser, ...updatedData };
-      setCurrentUser(updatedUser);
-      
-      return { success: true, message: 'Profile updated' };
-    } catch (error) {
-      return { success: false, message: 'Update failed' };
-    }
   };
 
   const isAuthenticated = !!currentUser;
 
+  if (isLoading) {
+    return <div>Loading...</div>; // Or your loading component
+  }
+
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      isAuthenticated,
-      login,
-      register,
-      logout,
-      updateUser,
-      users
-    }}>
+    <AuthContext.Provider value={{ currentUser, isAuthenticated, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

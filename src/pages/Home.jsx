@@ -66,7 +66,7 @@ const Home = () => {
         userEmail={currentUser.email}
       />
       
-      <main className="pt-[57px] lg:pl-64 min-h-screen transition-all duration-200">
+      <main className="pt-[57px] lg:pl-64 container mx-auto min-h-screen transition-all duration-200">
         <div className="p-4 md:p-6">
           <div className="mb-6 flex gap-2">
             <button

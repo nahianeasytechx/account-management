@@ -11,27 +11,22 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        {/* Wrap with AccountsProvider FIRST */}
-        <AccountsProvider>
-          {/* Then wrap with TransactionProvider */}
-          <TransactionProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </TransactionProvider>
-        </AccountsProvider>
+        <TransactionProvider> {/* Remove AccountsProvider if not needed */}
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </TransactionProvider>
       </AuthProvider>
     </Router>
   );
 }
-
 export default App;

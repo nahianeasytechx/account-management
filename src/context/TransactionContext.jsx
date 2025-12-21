@@ -1,208 +1,274 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { apiRequest } from './api';
 
 const TransactionContext = createContext();
 
 export const TransactionProvider = ({ children }) => {
-  const { currentUser } = useAuth();
-  const userId = currentUser?.id;
-
-  const storageKey = useMemo(
-    () => (userId ? `ledger-accounts-${userId}` : null),
-    [userId]
-  );
-
+  const { currentUser, isAuthenticated } = useAuth();
   const [accounts, setAccounts] = useState([]);
-  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ===============================
-     LOAD USER DATA
-  =============================== */
-  useEffect(() => {
-    if (!storageKey) return;
-
-    setLoading(true);
-    const saved = localStorage.getItem(storageKey);
-    const parsed = saved ? JSON.parse(saved) : [];
-
-    setAccounts(parsed);
-    setLoading(false);
-  }, [storageKey]);
+  const userId = useMemo(() => currentUser?.id, [currentUser?.id]);
 
   /* ===============================
-     SAVE USER DATA
+     LOAD ACCOUNTS + TRANSACTIONS FROM API
   =============================== */
   useEffect(() => {
-    if (!storageKey) return;
-    localStorage.setItem(storageKey, JSON.stringify(accounts));
-  }, [accounts, storageKey]);
+    if (!isAuthenticated || !userId) {
+      setAccounts([]);
+      setSelectedAccountId(null);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchAccounts = async () => {
+      setLoading(true);
+      try {
+        const data = await apiRequest('accounts.php', 'GET');
+
+        if (!isMounted) return;
+
+        if (data.success && data.data) {
+          const accountsWithTransactions = data.data.map(acc => ({
+            ...acc,
+            transactions: (acc.transactions || []).map(t => ({
+              ...t,
+              amount: parseFloat(t.amount) || 0,
+              balance: parseFloat(t.balance) || 0,
+            })),
+          }));
+
+          setAccounts(accountsWithTransactions);
+          setSelectedAccountId(accountsWithTransactions[0]?.id || null);
+        } else {
+          setAccounts([]);
+          setSelectedAccountId(null);
+          console.error('Failed to fetch accounts:', data.message);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAccounts([]);
+          setSelectedAccountId(null);
+        }
+        console.error('Error fetching accounts:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchAccounts();
+    return () => { isMounted = false; };
+  }, [isAuthenticated, userId]);
 
   /* ===============================
      ACCOUNT ACTIONS
   =============================== */
+  const addAccount = useCallback(async (name, currency = 'BDT') => {
+    try {
+      const data = await apiRequest('accounts.php', 'POST', { name, currency });
 
-  // ✅ EXACT name Sidebar expects
-  const addAccount = (name, currency = 'BDT') => {
-    const newAccount = {
-      id: Date.now().toString(),
-      name,
-      currency,
-      transactions: [],
-      createdAt: new Date().toISOString(),
-    };
+      if (data.success && data.data) {
+        const newAccount = {
+          ...data.data,
+          transactions: (data.data.transactions || []).map(t => ({
+            ...t,
+            amount: parseFloat(t.amount) || 0,
+            balance: parseFloat(t.balance) || 0,
+          })),
+        };
 
-    setAccounts((prev) => [...prev, newAccount]);
-    setSelectedAccountId(newAccount.id);
-  };
+        setAccounts(prev => [...prev, newAccount]);
+        setSelectedAccountId(newAccount.id);
+        return { success: true, data: newAccount };
+      }
 
-  const deleteAccount = (accountId) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== accountId));
-
-    if (selectedAccountId === accountId) {
-      setSelectedAccountId('all');
+      return { success: false, message: data.message || 'Failed to add account' };
+    } catch (error) {
+      console.error('Add account failed:', error);
+      return { success: false, message: error.message };
     }
-  };
+  }, []);
 
-  const getAccountById = (id) =>
-    accounts.find((a) => a.id === id) || null;
+  const deleteAccount = useCallback(async (accountId) => {
+    try {
+      const data = await apiRequest(`accounts.php?id=${accountId}`, 'DELETE');
+
+      if (data.success) {
+        setAccounts(prev => {
+          const filtered = prev.filter(a => a.id !== accountId);
+          if (selectedAccountId === accountId) {
+            setSelectedAccountId(filtered[0]?.id || null);
+          }
+          return filtered;
+        });
+        return { success: true };
+      }
+
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Delete account failed:', error);
+      return { success: false, message: error.message };
+    }
+  }, [selectedAccountId]);
+
+  const getAccountById = useCallback((id) => {
+    const account = accounts.find(a => a.id === id);
+    if (!account) return null;
+    return {
+      ...account,
+      transactions: account.transactions || [],
+    };
+  }, [accounts]);
 
   /* ===============================
      TRANSACTION ACTIONS
   =============================== */
+  const addTransaction = useCallback(async (accountId, transactionData) => {
+    try {
+      const data = await apiRequest('transactions.php', 'POST', {
+        account_id: accountId,
+        ...transactionData,
+      });
 
-  const addTransaction = (accountId, data) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id !== accountId) return acc;
-
-        const lastBalance =
-          acc.transactions.length > 0
-            ? acc.transactions[acc.transactions.length - 1].balance
-            : 0;
-
-        const newBalance =
-          data.type === 'in'
-            ? lastBalance + data.amount
-            : lastBalance - data.amount;
-
+      if (data.success && data.data) {
         const transaction = {
-          id: Date.now().toString(),
-          ...data,
-          date: data.date || new Date().toISOString(), // ✅ REQUIRED
-          balance: newBalance,
+          ...data.data,
+          amount: parseFloat(data.data.amount) || 0,
+          balance: parseFloat(data.data.balance) || 0,
         };
 
-        return {
-          ...acc,
-          transactions: [...acc.transactions, transaction],
-        };
-      })
-    );
-  };
+        setAccounts(prev =>
+          prev.map(acc =>
+            acc.id === accountId
+              ? { ...acc, transactions: [...(acc.transactions || []), transaction] }
+              : acc
+          )
+        );
 
-  const editTransaction = (accountId, transactionId, updates) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id !== accountId) return acc;
+        return { success: true, data: transaction };
+      }
 
-        let runningBalance = 0;
+      return { success: false, message: data.message || 'Failed to add transaction' };
+    } catch (error) {
+      console.error('Add transaction failed:', error);
+      return { success: false, message: error.message };
+    }
+  }, []);
 
-        const updatedTransactions = acc.transactions.map((t) => {
-          const updated =
-            t.id === transactionId ? { ...t, ...updates } : t;
+  const editTransaction = useCallback(async (accountId, transactionId, updates) => {
+    try {
+      const data = await apiRequest(`transactions.php?id=${transactionId}`, 'PUT', updates);
 
-          runningBalance =
-            updated.type === 'in'
-              ? runningBalance + updated.amount
-              : runningBalance - updated.amount;
+      if (data.success) {
+        setAccounts(prev =>
+          prev.map(acc =>
+            acc.id === accountId
+              ? {
+                  ...acc,
+                  transactions: (acc.transactions || []).map(t =>
+                    t.id === transactionId
+                      ? { ...t, ...updates, amount: parseFloat(updates.amount || t.amount), balance: parseFloat(updates.balance || t.balance) }
+                      : t
+                  ),
+                }
+              : acc
+          )
+        );
 
-          return { ...updated, balance: runningBalance };
-        });
+        return { success: true };
+      }
 
-        return { ...acc, transactions: updatedTransactions };
-      })
-    );
-  };
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Edit transaction failed:', error);
+      return { success: false, message: error.message };
+    }
+  }, []);
 
-  const deleteTransaction = (accountId, transactionId) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id !== accountId) return acc;
+  const deleteTransaction = useCallback(async (accountId, transactionId) => {
+    try {
+      const data = await apiRequest(`transactions.php?id=${transactionId}`, 'DELETE');
 
-        let runningBalance = 0;
-        const filtered = acc.transactions
-          .filter((t) => t.id !== transactionId)
-          .map((t) => {
-            runningBalance =
-              t.type === 'in'
-                ? runningBalance + t.amount
-                : runningBalance - t.amount;
+      if (data.success) {
+        setAccounts(prev =>
+          prev.map(acc =>
+            acc.id === accountId
+              ? {
+                  ...acc,
+                  transactions: (acc.transactions || []).filter(t => t.id !== transactionId),
+                }
+              : acc
+          )
+        );
+        return { success: true };
+      }
 
-            return { ...t, balance: runningBalance };
-          });
-
-        return { ...acc, transactions: filtered };
-      })
-    );
-  };
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Delete transaction failed:', error);
+      return { success: false, message: error.message };
+    }
+  }, []);
 
   /* ===============================
      DERIVED DATA
   =============================== */
-
-  const getAllTransactions = () =>
-    accounts.flatMap((acc) =>
-      acc.transactions.map((t) => ({
+  const getAllTransactions = useCallback(() =>
+    accounts.flatMap(acc =>
+      (acc.transactions || []).map(t => ({
         ...t,
         accountId: acc.id,
         accountName: acc.name,
         currency: acc.currency,
       }))
-    );
+    )
+  , [accounts]);
 
-  const getTotals = () => {
+  const getTotals = useCallback(() => {
     let totalIn = 0;
     let totalOut = 0;
 
-    accounts.forEach((acc) =>
-      acc.transactions.forEach((t) =>
-        t.type === 'in'
-          ? (totalIn += t.amount)
-          : (totalOut += t.amount)
-      )
-    );
+    accounts.forEach(acc => {
+      (acc.transactions || []).forEach(t => {
+        const amount = parseFloat(t.amount) || 0;
+        if (t.type === 'in') totalIn += amount;
+        else totalOut += amount;
+      });
+    });
 
     return {
-      totalIn,
-      totalOut,
-      balance: totalIn - totalOut,
+      totalIn: parseFloat(totalIn.toFixed(2)),
+      totalOut: parseFloat(totalOut.toFixed(2)),
+      balance: parseFloat((totalIn - totalOut).toFixed(2)),
     };
-  };
+  }, [accounts]);
+
+  const contextValue = useMemo(() => ({
+    loading,
+    accounts,
+    selectedAccountId,
+    setSelectedAccountId,
+    addAccount,
+    deleteAccount,
+    getAccountById,
+    addTransaction,
+    editTransaction,
+    deleteTransaction,
+    getAllTransactions,
+    getTotals,
+  }), [
+    loading, accounts, selectedAccountId,
+    addAccount, deleteAccount, getAccountById,
+    addTransaction, editTransaction, deleteTransaction,
+    getAllTransactions, getTotals,
+  ]);
 
   return (
-    <TransactionContext.Provider
-      value={{
-        loading,
-        accounts,
-        selectedAccountId,
-        setSelectedAccountId,
-        addAccount,          // ✅ FIXED
-        deleteAccount,
-        getAccountById,
-        addTransaction,
-        editTransaction,
-        deleteTransaction,
-        getAllTransactions,
-        getTotals,
-      }}
-    >
+    <TransactionContext.Provider value={contextValue}>
       {children}
     </TransactionContext.Provider>
   );
@@ -210,10 +276,6 @@ export const TransactionProvider = ({ children }) => {
 
 export const useTransactions = () => {
   const context = useContext(TransactionContext);
-  if (!context) {
-    throw new Error(
-      'useTransactions must be used within TransactionProvider'
-    );
-  }
+  if (!context) throw new Error('useTransactions must be used within TransactionProvider');
   return context;
 };

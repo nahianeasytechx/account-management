@@ -26,9 +26,8 @@ const handleSubmit = async (e) => {
 
   try {
     if (isLogin) {
-      const result = login(formData.username, formData.password);
+      const result = await login(formData.username, formData.password);
       if (result.success) {
-        // Get redirect path from sessionStorage or default to home
         const redirectPath = sessionStorage.getItem('redirectPath') || '/';
         sessionStorage.removeItem('redirectPath');
         navigate(redirectPath);
@@ -36,7 +35,7 @@ const handleSubmit = async (e) => {
         throw new Error(result.message);
       }
     } else {
-      const result = register({
+      const result = await register({
         username: formData.email,
         email: formData.email,
         password: formData.password,
@@ -55,6 +54,7 @@ const handleSubmit = async (e) => {
     setLoading(false);
   }
 };
+
 
   const resetForm = () => {
     setFormData({

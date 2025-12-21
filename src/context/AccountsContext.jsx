@@ -1,11 +1,6 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-} from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useAuth } from './AuthContext';
+import { apiRequest } from './api'; // Use the API helper we created
 
 const AccountsContext = createContext();
 
@@ -13,7 +8,6 @@ export const AccountsProvider = ({ children }) => {
   const { currentUser, isAuthenticated } = useAuth();
   const userId = currentUser?.id;
 
-  // Fixed: Ensure storageKey properly reflects user id
   const storageKey = useMemo(
     () => (userId ? `ledger-accounts-${userId}` : null),
     [userId]
@@ -24,10 +18,9 @@ export const AccountsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   /* ===============================
-     LOAD USER DATA
+     LOAD USER ACCOUNTS FROM API
   =============================== */
   useEffect(() => {
-    // Fixed: Clear data when no user is logged in
     if (!isAuthenticated || !userId) {
       setAccounts([]);
       setSelectedAccountId(null);
@@ -35,35 +28,42 @@ export const AccountsProvider = ({ children }) => {
       return;
     }
 
-    if (!storageKey) return;
+    const fetchAccounts = async () => {
+      setLoading(true);
+      try {
+        const data = await apiRequest('accounts.php', 'GET');
 
-    setLoading(true);
-    try {
-      const saved = localStorage.getItem(storageKey);
-      const parsed = saved ? JSON.parse(saved) : [];
-      
-      setAccounts(parsed);
-      setSelectedAccountId(parsed[0]?.id || null);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-      setAccounts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [storageKey, isAuthenticated, userId]); // Added isAuthenticated and userId to dependencies
+        if (data.success) {
+          setAccounts(data.data || []);
+          setSelectedAccountId(data.data[0]?.id || null);
+          // Optional: save to localStorage as cache
+          localStorage.setItem(storageKey, JSON.stringify(data.data));
+        } else {
+          console.error('Failed to fetch accounts:', data.message);
+          // Fallback to localStorage if available
+          const saved = localStorage.getItem(storageKey);
+          setAccounts(saved ? JSON.parse(saved) : []);
+          setSelectedAccountId(saved ? JSON.parse(saved)[0]?.id : null);
+        }
+      } catch (error) {
+        console.error('Error fetching accounts:', error);
+        const saved = localStorage.getItem(storageKey);
+        setAccounts(saved ? JSON.parse(saved) : []);
+        setSelectedAccountId(saved ? JSON.parse(saved)[0]?.id : null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAccounts();
+  }, [isAuthenticated, userId, storageKey]);
 
   /* ===============================
-     SAVE USER DATA
+     SAVE USER ACCOUNTS TO API
   =============================== */
   useEffect(() => {
-    // Fixed: Only save if user is authenticated
     if (!isAuthenticated || !storageKey) return;
-    
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(accounts));
-    } catch (error) {
-      console.error('Error saving accounts:', error);
-    }
+    localStorage.setItem(storageKey, JSON.stringify(accounts));
   }, [accounts, storageKey, isAuthenticated]);
 
   /* ===============================
@@ -71,48 +71,64 @@ export const AccountsProvider = ({ children }) => {
   =============================== */
   useEffect(() => {
     if (!isAuthenticated) {
-      // Clear local state when user logs out
       setAccounts([]);
       setSelectedAccountId(null);
     }
   }, [isAuthenticated]);
 
   /* ===============================
-     ACCOUNT ACTIONS
+     ACCOUNT ACTIONS (API integrated)
   =============================== */
-
-  const createAccount = (name) => {
-    const newAccount = {
-      id: Date.now().toString(),
-      name,
-      currency: 'BDT',
-      transactions: [],
-      createdAt: new Date().toISOString(),
-    };
-
-    setAccounts((prev) => [...prev, newAccount]);
-    setSelectedAccountId(newAccount.id);
-  };
-
-  const updateAccount = (accountId, updates) => {
-    setAccounts((prev) =>
-      prev.map((acc) =>
-        acc.id === accountId ? { ...acc, ...updates } : acc
-      )
-    );
-  };
-
-  const deleteAccount = (accountId) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== accountId));
-
-    if (selectedAccountId === accountId) {
-      const remainingAccounts = accounts.filter((a) => a.id !== accountId);
-      setSelectedAccountId(remainingAccounts[0]?.id || null);
+  const createAccount = async (name, currency = 'BDT') => {
+    try {
+      const data = await apiRequest('accounts.php', 'POST', { name, currency });
+      if (data.success) {
+        setAccounts((prev) => [...prev, data.data]);
+        setSelectedAccountId(data.data.id);
+        return { success: true };
+      }
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Create account failed:', error);
+      return { success: false, message: error.message };
     }
   };
 
-  const getAccountById = (id) =>
-    accounts.find((acc) => acc.id === id) || null;
+  const updateAccount = async (accountId, updates) => {
+    try {
+      const data = await apiRequest(`accounts.php?id=${accountId}`, 'PUT', updates);
+      if (data.success) {
+        setAccounts((prev) =>
+          prev.map((acc) => (acc.id === accountId ? { ...acc, ...updates } : acc))
+        );
+        return { success: true };
+      }
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Update account failed:', error);
+      return { success: false, message: error.message };
+    }
+  };
+
+  const deleteAccount = async (accountId) => {
+    try {
+      const data = await apiRequest(`accounts.php?id=${accountId}`, 'DELETE');
+      if (data.success) {
+        setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+        if (selectedAccountId === accountId) {
+          const remaining = accounts.filter((a) => a.id !== accountId);
+          setSelectedAccountId(remaining[0]?.id || null);
+        }
+        return { success: true };
+      }
+      return { success: false, message: data.message };
+    } catch (error) {
+      console.error('Delete account failed:', error);
+      return { success: false, message: error.message };
+    }
+  };
+
+  const getAccountById = (id) => accounts.find((acc) => acc.id === id) || null;
 
   return (
     <AccountsContext.Provider
@@ -125,7 +141,7 @@ export const AccountsProvider = ({ children }) => {
         updateAccount,
         deleteAccount,
         getAccountById,
-        setAccounts, // Fixed: Expose setAccounts if TransactionContext needs it
+        setAccounts,
       }}
     >
       {children}

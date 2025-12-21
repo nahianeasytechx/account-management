@@ -2,34 +2,34 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
 
+// Safe rounding function
+const round2 = (num) => Math.round((parseFloat(num) + Number.EPSILON) * 100) / 100;
+
 const DashboardCards = ({ accountId = null }) => {
   const { accounts, getTotals } = useTransactions();
   
-  // Calculate totals - either for specific account or all accounts
   const calculateAccountTotals = () => {
     let totalIn = 0;
     let totalOut = 0;
 
     if (accountId) {
-      // Calculate for specific account
       const account = accounts.find(acc => acc.id === accountId);
       if (account) {
         account.transactions.forEach(t => {
-          if (t.type === 'in') totalIn += t.amount;
-          else totalOut += t.amount;
+          if (t.type === 'in') totalIn += round2(t.amount);
+          else totalOut += round2(t.amount);
         });
       }
     } else {
-      // Calculate for all accounts (global)
       const totals = getTotals();
-      totalIn = totals.totalIn;
-      totalOut = totals.totalOut;
+      totalIn = round2(totals.totalIn);
+      totalOut = round2(totals.totalOut);
     }
 
     return {
       totalIn,
       totalOut,
-      balance: totalIn - totalOut,
+      balance: round2(totalIn - totalOut),
     };
   };
 
@@ -75,7 +75,7 @@ const DashboardCards = ({ accountId = null }) => {
             </div>
           </div>
           <p className={`text-3xl font-bold ${card.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-            {currencySymbol}{Math.abs(card.amount).toFixed(2)}
+            {currencySymbol}{Math.abs(round2(card.amount)).toFixed(2)}
           </p>
         </div>
       ))}

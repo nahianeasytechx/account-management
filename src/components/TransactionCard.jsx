@@ -160,16 +160,7 @@ const TransactionCard = ({ transaction, accountId, onDelete }) => {
             <div className="flex items-center gap-2">
               {!editing && (
                 <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(true);
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded text-gray-600 cursor-pointer"
-                    title="Edit transaction"
-                  >
-                    <Edit2 size={18} />
-                  </button>
+
                   
                   {expanded ? (
                     <ChevronUp size={20} className="text-gray-400" />
