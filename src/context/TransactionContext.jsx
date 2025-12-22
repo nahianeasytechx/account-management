@@ -13,6 +13,52 @@ export const TransactionProvider = ({ children }) => {
   const userId = useMemo(() => currentUser?.id, [currentUser?.id]);
 
   /* ===============================
+     FETCH ACCOUNTS FUNCTION (reusable)
+  =============================== */
+  const fetchAccounts = useCallback(async () => {
+    if (!isAuthenticated || !userId) {
+      setAccounts([]);
+      setSelectedAccountId(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await apiRequest('accounts.php', 'GET');
+
+      if (data.success && data.data) {
+        const accountsWithTransactions = data.data.map(acc => ({
+          ...acc,
+          transactions: (acc.transactions || []).map(t => ({
+            ...t,
+            amount: parseFloat(t.amount) || 0,
+            balance: parseFloat(t.balance) || 0,
+          })),
+        }));
+
+        setAccounts(accountsWithTransactions);
+        
+        // Only set selectedAccountId if it's not already set
+        if (!selectedAccountId && accountsWithTransactions.length > 0) {
+          setSelectedAccountId(accountsWithTransactions[0].id);
+        }
+        
+        return accountsWithTransactions;
+      } else {
+        setAccounts([]);
+        console.error('Failed to fetch accounts:', data.message);
+        return [];
+      }
+    } catch (error) {
+      setAccounts([]);
+      console.error('Error fetching accounts:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, userId, selectedAccountId]);
+
+  /* ===============================
      LOAD ACCOUNTS + TRANSACTIONS FROM API
   =============================== */
   useEffect(() => {
@@ -25,44 +71,14 @@ export const TransactionProvider = ({ children }) => {
 
     let isMounted = true;
 
-    const fetchAccounts = async () => {
+    const loadAccounts = async () => {
       setLoading(true);
-      try {
-        const data = await apiRequest('accounts.php', 'GET');
-
-        if (!isMounted) return;
-
-        if (data.success && data.data) {
-          const accountsWithTransactions = data.data.map(acc => ({
-            ...acc,
-            transactions: (acc.transactions || []).map(t => ({
-              ...t,
-              amount: parseFloat(t.amount) || 0,
-              balance: parseFloat(t.balance) || 0,
-            })),
-          }));
-
-          setAccounts(accountsWithTransactions);
-          setSelectedAccountId(accountsWithTransactions[0]?.id || null);
-        } else {
-          setAccounts([]);
-          setSelectedAccountId(null);
-          console.error('Failed to fetch accounts:', data.message);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setAccounts([]);
-          setSelectedAccountId(null);
-        }
-        console.error('Error fetching accounts:', error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+      await fetchAccounts();
     };
 
-    fetchAccounts();
+    loadAccounts();
     return () => { isMounted = false; };
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, userId]); // Removed fetchAccounts from dependencies to prevent infinite loop
 
   /* ===============================
      ACCOUNT ACTIONS
@@ -135,21 +151,9 @@ export const TransactionProvider = ({ children }) => {
       });
 
       if (data.success && data.data) {
-        const transaction = {
-          ...data.data,
-          amount: parseFloat(data.data.amount) || 0,
-          balance: parseFloat(data.data.balance) || 0,
-        };
-
-        setAccounts(prev =>
-          prev.map(acc =>
-            acc.id === accountId
-              ? { ...acc, transactions: [...(acc.transactions || []), transaction] }
-              : acc
-          )
-        );
-
-        return { success: true, data: transaction };
+        // Refetch all accounts to get updated balances
+        await fetchAccounts();
+        return { success: true, data: data.data };
       }
 
       return { success: false, message: data.message || 'Failed to add transaction' };
@@ -157,28 +161,15 @@ export const TransactionProvider = ({ children }) => {
       console.error('Add transaction failed:', error);
       return { success: false, message: error.message };
     }
-  }, []);
+  }, [fetchAccounts]);
 
   const editTransaction = useCallback(async (accountId, transactionId, updates) => {
     try {
       const data = await apiRequest(`transactions.php?id=${transactionId}`, 'PUT', updates);
 
       if (data.success) {
-        setAccounts(prev =>
-          prev.map(acc =>
-            acc.id === accountId
-              ? {
-                  ...acc,
-                  transactions: (acc.transactions || []).map(t =>
-                    t.id === transactionId
-                      ? { ...t, ...updates, amount: parseFloat(updates.amount || t.amount), balance: parseFloat(updates.balance || t.balance) }
-                      : t
-                  ),
-                }
-              : acc
-          )
-        );
-
+        // Refetch all accounts to get updated balances for all transactions
+        await fetchAccounts();
         return { success: true };
       }
 
@@ -187,23 +178,15 @@ export const TransactionProvider = ({ children }) => {
       console.error('Edit transaction failed:', error);
       return { success: false, message: error.message };
     }
-  }, []);
+  }, [fetchAccounts]);
 
   const deleteTransaction = useCallback(async (accountId, transactionId) => {
     try {
       const data = await apiRequest(`transactions.php?id=${transactionId}`, 'DELETE');
 
       if (data.success) {
-        setAccounts(prev =>
-          prev.map(acc =>
-            acc.id === accountId
-              ? {
-                  ...acc,
-                  transactions: (acc.transactions || []).filter(t => t.id !== transactionId),
-                }
-              : acc
-          )
-        );
+        // Refetch all accounts to get updated balances
+        await fetchAccounts();
         return { success: true };
       }
 
@@ -212,7 +195,7 @@ export const TransactionProvider = ({ children }) => {
       console.error('Delete transaction failed:', error);
       return { success: false, message: error.message };
     }
-  }, []);
+  }, [fetchAccounts]);
 
   /* ===============================
      DERIVED DATA
@@ -260,11 +243,12 @@ export const TransactionProvider = ({ children }) => {
     deleteTransaction,
     getAllTransactions,
     getTotals,
+    fetchAccounts, // Export for manual refresh if needed
   }), [
     loading, accounts, selectedAccountId,
     addAccount, deleteAccount, getAccountById,
     addTransaction, editTransaction, deleteTransaction,
-    getAllTransactions, getTotals,
+    getAllTransactions, getTotals, fetchAccounts,
   ]);
 
   return (

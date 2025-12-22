@@ -68,7 +68,7 @@ const Home = () => {
       
       <main className="pt-[57px] lg:pl-64 container mx-auto min-h-screen transition-all duration-200">
         <div className="p-4 md:p-6">
-          <div className="mb-6 flex gap-2">
+          <div className="mb-6 flex gap-2 mt-3 lg:mt-0">
             <button
               onClick={() => setCurrentView('dashboard')}
               className={`cursor-pointer px-4 py-2 rounded-lg transition-all duration-200 ${
@@ -83,7 +83,7 @@ const Home = () => {
               onClick={() => setCurrentView('ledger')}
               className={`cursor-pointer px-4 py-2 rounded-lg transition-all duration-200 ${
                 currentView === 'ledger' 
-                  ? 'bg-blue-600 text-white shadow-md' 
+                  ? 'bg-linear-to-r from-blue-600 to-blue-700 text-white text-white shadow-md' 
                   : 'bg-white text-gray-700 hover:bg-gray-100 hover:shadow'
               }`}
             >

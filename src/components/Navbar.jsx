@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, LogOut, User, Settings, Shield, HelpCircle } from 'lucide-react';
+import { Menu, LogOut, User, Settings, Shield, HelpCircle, Wallet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTransactions } from '../context/TransactionContext';
 import { useNavigate } from 'react-router-dom';
@@ -43,12 +43,14 @@ const Navbar = ({ onMenuClick }) => {
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">L</span>
+            <div className="w-6 md:w-10 h-6 md:h-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">
+                  <Wallet size={32} className="text-white p-2" />
+              </span>
             </div>
-            <h1 className="text-xl font-bold text-white">Ledger Accounts</h1>
+            <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-white lg:mr-20">Easy Ledger</h1>
             <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full border border-blue-500/30 hidden sm:inline-block">
-              {currentUser?.name?.split(' ')[0] || 'User'}'s Workspace
+              {currentUser?.name?.split(' ')[0] || 'User'}'s Ledger Accounts
             </span>
           </div>
         </div>

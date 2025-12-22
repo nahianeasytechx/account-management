@@ -113,7 +113,7 @@ const Login = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold">Easy Ledger</h1>
-              <p className="text-blue-200 text-sm">Financial Management</p>
+              <p className="text-blue-200 text-sm">Financial Management By Easy Tech Solutions</p>
             </div>
           </div>
 
@@ -170,8 +170,8 @@ const Login = () => {
               <Wallet size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Ledger Pro</h1>
-              <p className="text-blue-300 text-sm">Financial Management</p>
+              <h1 className="text-2xl font-bold text-white">Easy Ledger</h1>
+              <p className="text-blue-300 text-sm">Financial Management By Easy Tech Solutions</p>
             </div>
           </div>
 

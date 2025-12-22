@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Plus, Wallet, Home, Trash2, PieChart, ChevronDown, ChevronUp, LogOut 
+  X, Plus, Wallet, Home, Trash2, PieChart, ChevronDown, ChevronUp, LogOut, Search 
 } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
 import { useAuth } from '../context/AuthContext';
@@ -23,18 +23,18 @@ const Sidebar = ({ isOpen, onClose, currentView, setCurrentView }) => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('error');
 
-const prevPath = useRef(location.pathname);
+  const prevPath = useRef(location.pathname);
 
-useEffect(() => {
-  if (
-    window.innerWidth < 1024 &&
-    prevPath.current !== location.pathname
-  ) {
-    onClose();
-  }
+  useEffect(() => {
+    if (
+      window.innerWidth < 1024 &&
+      prevPath.current !== location.pathname
+    ) {
+      onClose();
+    }
 
-  prevPath.current = location.pathname;
-}, [location.pathname, onClose]);
+    prevPath.current = location.pathname;
+  }, [location.pathname, onClose]);
 
   const handleAddAccount = () => {
     const trimmedName = newAccountName.trim();
@@ -88,7 +88,7 @@ useEffect(() => {
   };
   
   const toggleAccountExpand = (e, id) => {
-    e.stopPropagation(); // FIXED: Prevent button propagation
+    e.stopPropagation();
     setExpandedAccount(expandedAccount === id ? null : id); 
   };
 
@@ -127,7 +127,7 @@ useEffect(() => {
       >
         {/* Mobile Header */}
         <div className="p-4 flex items-center justify-between lg:hidden border-b border-gray-700">
-          <h2 className="font-bold text-lg text-white">Navigation</h2>
+          <h2 className="font-bold text-lg text-white">Easy Ledger</h2>
           <button 
             onClick={onClose} 
             className="p-2 hover:bg-gray-700 rounded text-gray-300"
@@ -141,7 +141,7 @@ useEffect(() => {
           {/* Dashboard Button */}
           <button
             onClick={() => handleViewClick('dashboard')}
-            className={`w-full text-left px-4 py-3 flex items-center gap-3 rounded-lg transition-colors
+            className={`hidden w-full text-left px-4 py-3 flex items-center gap-3 rounded-lg transition-colors
               ${currentView === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
           >
             <PieChart size={18} /> Dashboard
@@ -196,6 +196,34 @@ useEffect(() => {
               </div>
             )}
 
+            {/* Search Bar */}
+            {accounts.length > 0 && (
+              <div className="mb-3 relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search accounts..."
+                    className="w-full pl-9 pr-8 py-2 bg-gray-800 border border-gray-600 rounded text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                      title="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                {searchTerm && filteredAccounts.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-2 px-1">No accounts found</p>
+                )}
+              </div>
+            )}
+
             {/* All Accounts Button */}
             <button
               onClick={handleAllAccountsClick}
@@ -208,7 +236,7 @@ useEffect(() => {
               <span className="text-xs bg-gray-600 px-2 py-1 rounded">{accounts.length}</span>
             </button>
 
-            {/* Individual Accounts - FIXED: No nested buttons */}
+            {/* Individual Accounts */}
             {showAllAccounts && filteredAccounts.map(account => (
               <div key={account.id} className="group mb-1">
                 {/* Main Account Button */}
@@ -229,7 +257,7 @@ useEffect(() => {
                     </div>
                   </button>
                   
-                  {/* FIXED: Expand button as separate overlay */}
+                  {/* Expand button as separate overlay */}
                   <button 
                     onClick={(e) => toggleAccountExpand(e, account.id)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-600 rounded text-gray-400 transition-opacity"

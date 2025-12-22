@@ -224,7 +224,7 @@ if (formData.type === 'in') {
                 })}
                 className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
                   formData.type === 'in' 
-                    ? 'bg-white text-green-600 shadow-sm ring-1 ring-green-200' 
+                    ? 'bg-linear-to-r from-green-500 to-green-600 text-white text-white shadow-sm ring-1 ring-green-200' 
                     : 'text-gray-600 hover:text-green-600'
                 }`}
               >
@@ -239,7 +239,7 @@ if (formData.type === 'in') {
                 })}
                 className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
                   formData.type === 'out' 
-                    ? 'bg-white text-red-600 shadow-sm ring-1 ring-red-200' 
+                    ? 'bg-linear-to-r from-red-500 to-red-600 text-white  shadow-sm ring-1 ring-red-200' 
                     : 'text-gray-600 hover:text-red-600'
                 }`}
               >
@@ -317,7 +317,7 @@ if (formData.type === 'in') {
         </div>
 
         {/* Description */}
-        <div className="mb-8">
+        <div className="mb-4 md:mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
             <FileText size={16} className="text-gray-500" />
             Description (Optional)
@@ -335,7 +335,7 @@ if (formData.type === 'in') {
         <button
           onClick={handleSubmit}
           disabled={uploading}
-          className={`w-full px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+          className={` px-6 py-2  rounded-lg font-semibold  transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
             uploading 
               ? 'bg-blue-400 cursor-not-allowed' 
               : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl'

@@ -42,41 +42,65 @@ const DashboardCards = ({ accountId = null }) => {
       title: accountId ? 'Account Cash In' : 'Total Cash In',
       amount: totalIn,
       icon: TrendingUp,
-      color: 'bg-green-50 text-green-600',
-      bgColor: 'bg-green-100'
+      gradient: 'from-green-500 to-emerald-600',
+      iconBg: 'bg-green-500',
+      lightBg: 'bg-gradient-to-br from-green-50 to-emerald-50'
     },
     {
       title: accountId ? 'Account Cash Out' : 'Total Cash Out',
       amount: totalOut,
       icon: TrendingDown,
-      color: 'bg-red-50 text-red-600',
-      bgColor: 'bg-red-100'
+      gradient: 'from-red-500 to-rose-600',
+      iconBg: 'bg-red-500',
+      lightBg: 'bg-gradient-to-br from-red-50 to-rose-50'
     },
     {
       title: accountId ? 'Account Balance' : 'Remaining Balance',
       amount: balance,
       icon: Wallet,
-      color: balance >= 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600',
-      bgColor: balance >= 0 ? 'bg-blue-100' : 'bg-red-100'
+      gradient: balance >= 0 ? 'from-blue-500 to-indigo-600' : 'from-red-500 to-rose-600',
+      iconBg: balance >= 0 ? 'bg-blue-500' : 'bg-red-500',
+      lightBg: balance >= 0 ? 'bg-gradient-to-br from-blue-50 to-indigo-50' : 'bg-gradient-to-br from-red-50 to-rose-50'
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6">
       {cards.map((card, idx) => (
-        <div key={idx} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">{card.title}</h3>
-              <p className="text-xs text-gray-500 mt-1">BDT Account</p>
+        <div 
+          key={idx} 
+          className={`relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${card.lightBg} border border-white/50`}
+        >
+          {/* Decorative gradient overlay */}
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${card.gradient} opacity-10 blur-2xl rounded-full -mr-16 -mt-16`}></div>
+          
+          <div className="relative p-6">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-gray-700 mb-1">{card.title}</h3>
+                <p className="text-xs text-gray-500">BDT Account</p>
+              </div>
+              <div className={`p-3 rounded-xl shadow-lg bg-gradient-to-br ${card.gradient}`}>
+                <card.icon className="text-white" size={22} strokeWidth={2.5} />
+              </div>
             </div>
-            <div className={`p-3 rounded-lg ${card.bgColor}`}>
-              <card.icon className={card.color} size={24} />
+
+            {/* Amount */}
+            <div className="mt-2">
+              <p className={`text-2xl md:text-3xl font-bold ${
+                card.amount < 0 ? 'text-red-600' : 'text-gray-900'
+              }`}>
+                {currencySymbol}{Math.abs(round2(card.amount)).toFixed(2)}
+              </p>
+              {card.amount < 0 && (
+                <p className="text-xs text-red-600 font-medium mt-1">Negative Balance</p>
+              )}
             </div>
+
+            {/* Bottom accent line */}
+            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`}></div>
           </div>
-          <p className={`text-3xl font-bold ${card.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-            {currencySymbol}{Math.abs(round2(card.amount)).toFixed(2)}
-          </p>
         </div>
       ))}
     </div>
