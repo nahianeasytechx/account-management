@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Plus, Wallet, Home, Trash2, PieChart, ChevronDown, ChevronUp, LogOut 
 } from 'lucide-react';
@@ -23,9 +23,18 @@ const Sidebar = ({ isOpen, onClose, currentView, setCurrentView }) => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('error');
 
-  useEffect(() => {
-    if (window.innerWidth < 1024) onClose();
-  }, [location.pathname, onClose]);
+const prevPath = useRef(location.pathname);
+
+useEffect(() => {
+  if (
+    window.innerWidth < 1024 &&
+    prevPath.current !== location.pathname
+  ) {
+    onClose();
+  }
+
+  prevPath.current = location.pathname;
+}, [location.pathname, onClose]);
 
   const handleAddAccount = () => {
     const trimmedName = newAccountName.trim();
