@@ -186,7 +186,7 @@ if (formData.type === 'in') {
           {/* Amount */}
           <div className={alertData.fields.includes('amount') ? 'animate-pulse' : ''}>
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              {getFieldIcon('amount')}
+           
               Amount ({currencySymbol})
             </label>
             <div className="relative">
