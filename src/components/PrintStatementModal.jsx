@@ -335,21 +335,21 @@ const PrintStatementModal = ({
 
   // Print statement
 
-// Print statement - simplest solution
-// Print statement - with Tailwind CSS support
-const handlePrint = () => {
-  const printContent = printRef.current.cloneNode(true);
+  // Print statement - simplest solution
+  // Print statement - with Tailwind CSS support
+  const handlePrint = () => {
+    const printContent = printRef.current.cloneNode(true);
 
-  const styles = Array.from(
-    document.querySelectorAll('style, link[rel="stylesheet"]')
-  )
-    .map(tag => tag.outerHTML)
-    .join('');
+    const styles = Array.from(
+      document.querySelectorAll('style, link[rel="stylesheet"]'),
+    )
+      .map((tag) => tag.outerHTML)
+      .join("");
 
-  // 🔥 OPEN IN NEW TAB (no window features)
-  const printWindow = window.open('', '_blank');
+    // 🔥 OPEN IN NEW TAB (no window features)
+    const printWindow = window.open("", "_blank");
 
-  printWindow.document.write(`
+    printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
@@ -391,12 +391,12 @@ const handlePrint = () => {
     </html>
   `);
 
-  printWindow.document.close();
+    printWindow.document.close();
 
-  printWindow.onload = () => {
-    printWindow.print();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
   };
-};
 
   // Early return after all hooks
   if (!isOpen) return null;
@@ -554,6 +554,9 @@ const handlePrint = () => {
                 {/* Bank/Company Header */}
                 <div className="flex items-start justify-between mb-6">
                   <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide">
+                      Easy Ledger cash book statement
+                    </p>
                     <h1 className="text-3xl font-bold text-gray-900 mb-1 tracking-tight">
                       CASH BOOK
                     </h1>
