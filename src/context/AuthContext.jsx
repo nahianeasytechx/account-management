@@ -7,7 +7,7 @@ const AuthContext = createContext();
 // Error Display Component
 const ErrorScreen = ({ message, onRetry }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg p-8 border border-red-200 max-w-md w-full">
         <div className="flex flex-col items-center text-center">
           {/* Error Icon */}
@@ -26,7 +26,7 @@ const ErrorScreen = ({ message, onRetry }) => {
           
           <button
             onClick={onRetry}
-            className="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-600 hover:to-green-600 transition-all shadow-md hover:shadow-lg"
+            className="w-full bg-linear-to-r from-blue-500 to-green-500 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-600 hover:to-green-600 transition-all shadow-md hover:shadow-lg"
           >
             Retry Connection
           </button>

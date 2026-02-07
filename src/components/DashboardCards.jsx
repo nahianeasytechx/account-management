@@ -38,13 +38,21 @@ const DashboardCards = ({ accountId = null }) => {
   const currencySymbol = '৳';
 
   const cards = [
+        {
+      title: accountId ? 'Account Balance' : 'Remaining Balance',
+      amount: balance,
+      icon: Wallet,
+      gradient: balance >= 0 ? 'from-blue-500 to-indigo-600' : 'from-red-500 to-rose-600',
+      iconBg: balance >= 0 ? 'bg-blue-500' : 'bg-red-500',
+      lightBg: balance >= 0 ? 'bg-linear-to-br from-blue-50 to-indigo-50' : 'bg-linear-to-br from-red-50 to-rose-50'
+    },
     {
       title: accountId ? 'Account Cash In' : 'Total Cash In',
       amount: totalIn,
       icon: TrendingUp,
       gradient: 'from-green-500 to-emerald-600',
       iconBg: 'bg-green-500',
-      lightBg: 'bg-gradient-to-br from-green-50 to-emerald-50'
+      lightBg: 'bg-linear-to-br from-green-50 to-emerald-50'
     },
     {
       title: accountId ? 'Account Cash Out' : 'Total Cash Out',
@@ -52,15 +60,7 @@ const DashboardCards = ({ accountId = null }) => {
       icon: TrendingDown,
       gradient: 'from-red-500 to-rose-600',
       iconBg: 'bg-red-500',
-      lightBg: 'bg-gradient-to-br from-red-50 to-rose-50'
-    },
-    {
-      title: accountId ? 'Account Balance' : 'Remaining Balance',
-      amount: balance,
-      icon: Wallet,
-      gradient: balance >= 0 ? 'from-blue-500 to-indigo-600' : 'from-red-500 to-rose-600',
-      iconBg: balance >= 0 ? 'bg-blue-500' : 'bg-red-500',
-      lightBg: balance >= 0 ? 'bg-gradient-to-br from-blue-50 to-indigo-50' : 'bg-gradient-to-br from-red-50 to-rose-50'
+      lightBg: 'bg-linear-to-br from-red-50 to-rose-50'
     }
   ];
 
@@ -72,7 +72,7 @@ const DashboardCards = ({ accountId = null }) => {
           className={`relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${card.lightBg} border border-white/50`}
         >
           {/* Decorative gradient overlay */}
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${card.gradient} opacity-10 blur-2xl rounded-full -mr-16 -mt-16`}></div>
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-linear-to-br ${card.gradient} opacity-10 blur-2xl rounded-full -mr-16 -mt-16`}></div>
           
           <div className="relative p-6">
             {/* Header */}
@@ -81,7 +81,7 @@ const DashboardCards = ({ accountId = null }) => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-1">{card.title}</h3>
                 <p className="text-xs text-gray-500">BDT Account</p>
               </div>
-              <div className={`p-3 rounded-xl shadow-lg bg-gradient-to-br ${card.gradient}`}>
+              <div className={`p-3 rounded-xl shadow-lg bg-linear-to-br ${card.gradient}`}>
                 <card.icon className="text-white" size={22} strokeWidth={2.5} />
               </div>
             </div>
@@ -99,7 +99,7 @@ const DashboardCards = ({ accountId = null }) => {
             </div>
 
             {/* Bottom accent line */}
-            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`}></div>
+            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r ${card.gradient}`}></div>
           </div>
         </div>
       ))}

@@ -185,7 +185,7 @@ if (formData.type === 'in') {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {/* Amount */}
           <div className={alertData.fields.includes('amount') ? 'animate-pulse' : ''}>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <label className=" text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
            
               Amount ({currencySymbol})
             </label>
@@ -224,7 +224,7 @@ if (formData.type === 'in') {
                 })}
                 className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
                   formData.type === 'in' 
-                    ? 'bg-linear-to-r from-green-500 to-green-600 text-white text-white shadow-sm ring-1 ring-green-200' 
+                    ? 'bg-linear-to-r from-green-500 to-green-600  text-white shadow-sm ring-1 ring-green-200' 
                     : 'text-gray-600 hover:text-green-600'
                 }`}
               >
@@ -250,7 +250,7 @@ if (formData.type === 'in') {
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <label className=" text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <Calendar size={16} className="text-gray-500" />
               Date
             </label>
@@ -267,7 +267,7 @@ if (formData.type === 'in') {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {formData.type === 'in' ? (
             <div className={alertData.fields.includes('source') ? 'animate-pulse' : ''}>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <label className=" text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 <User size={16} className="text-gray-500" />
                 Source (Where did the cash come from?)
               </label>
@@ -291,7 +291,7 @@ if (formData.type === 'in') {
             </div>
           ) : (
             <div className={alertData.fields.includes('paidTo') ? 'animate-pulse' : ''}>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <label className=" text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 <User size={16} className="text-gray-500" />
                 Paid To (Where was the cash paid to?)
               </label>
@@ -318,7 +318,7 @@ if (formData.type === 'in') {
 
         {/* Description */}
         <div className="mb-4 md:mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+          <label className=" text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
             <FileText size={16} className="text-gray-500" />
             Description (Optional)
           </label>
@@ -338,7 +338,7 @@ if (formData.type === 'in') {
           className={` px-6 py-2  rounded-lg font-semibold  transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
             uploading 
               ? 'bg-blue-400 cursor-not-allowed' 
-              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl'
+              : 'bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl'
           }`}
         >
           {uploading ? (
@@ -392,7 +392,7 @@ if (formData.type === 'in') {
                     <p className="text-gray-700 text-lg">{alertData.message}</p>
                     
                     {alertData.type === 'success' && (
-                      <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 w-full">
+                      <div className="mt-4 p-4 bg-linear-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 w-full">
                         <div className="flex items-center justify-center gap-3">
                           <div className="p-2 bg-green-100 rounded-lg">
                             <CheckCircle className="text-green-600" size={24} />
@@ -419,7 +419,7 @@ if (formData.type === 'in') {
                         const firstField = alertData.fields[0];
                         document.querySelector(`[name="${firstField}"]`)?.focus();
                       }}
-                      className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all"
+                      className="flex-1 py-3 bg-linear-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all"
                     >
                       Fix Errors
                     </button>
@@ -439,14 +439,14 @@ if (formData.type === 'in') {
                           });
                         }
                       }}
-                      className="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-700 hover:to-green-800 transition-all"
+                      className="flex-1 py-3 bg-linear-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-700 hover:to-green-800 transition-all"
                     >
                       Add Another
                     </button>
                   ) : (
                     <button
                       onClick={() => setShowAlert(false)}
-                      className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+                      className="flex-1 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
                     >
                       Got it
                     </button>

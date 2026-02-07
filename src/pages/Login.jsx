@@ -98,17 +98,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-blue-900 to-slate-900 flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20"></div>
+        <div className="absolute inset-0 bg-linear-to-br from-blue-600/20 to-purple-600/20"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjAzIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
         
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl">
+            <div className="w-14 h-14 bg-linear-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl">
               <Wallet size={28} className="text-white" />
             </div>
             <div>
@@ -126,7 +126,7 @@ const Login = () => {
             
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 backdrop-blur-sm flex items-center justify-center shrink-0">
                   <TrendingUp size={24} className="text-blue-400" />
                 </div>
                 <div>
@@ -136,7 +136,7 @@ const Login = () => {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 backdrop-blur-sm flex items-center justify-center shrink-0">
                   <Shield size={24} className="text-purple-400" />
                 </div>
                 <div>
@@ -146,7 +146,7 @@ const Login = () => {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-green-500/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-green-500/20 backdrop-blur-sm flex items-center justify-center shrink-0">
                   <Zap size={24} className="text-green-400" />
                 </div>
                 <div>
@@ -166,7 +166,7 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
               <Wallet size={24} className="text-white" />
             </div>
             <div>
@@ -293,7 +293,7 @@ const Login = () => {
                 className={`w-full py-3.5 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 ${
                   loading 
                     ? 'bg-blue-500/50 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                    : 'bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                 }`}
               >
                 {loading ? (

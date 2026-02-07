@@ -13,7 +13,7 @@ const TransactionTable = ({ transactions, accountId = null }) => {
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-sm p-16 text-center border border-gray-100">
+      <div className="bg-linear-to-br from-gray-50 to-white rounded-xl shadow-sm p-16 text-center border border-gray-100">
         <div className="max-w-sm mx-auto">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <TrendingUp className="text-gray-400" size={32} />
@@ -30,10 +30,10 @@ const TransactionTable = ({ transactions, accountId = null }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+      <div className="px-6 py-5 bg-linear-to-r from-blue-50 to-purple-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <TrendingUp className="text-white" size={20} />
             </div>
             <div>
@@ -66,7 +66,7 @@ const TransactionTable = ({ transactions, accountId = null }) => {
             {transactions.map((transaction, index) => (
               <tr 
                 key={transaction.id} 
-                className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-150"
+                className="hover:bg-linear-to-r hover:from-blue-50/50 hover:to-purple-50/50 transition-all duration-150"
               >
                 <td className="px-6 py-4 ">
                   <div className="flex flex-col">

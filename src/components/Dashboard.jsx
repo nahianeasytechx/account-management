@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Trash2, Filter, Search, Calendar, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Filter, Search, Calendar, X, ChevronLeft, ChevronRight, Printer, Download } from 'lucide-react';
 import DashboardCards from './DashboardCards';
 import TransactionCard from './TransactionCard';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import PrintStatementModal from './PrintStatementModal';
 import { useTransactions } from '../context/TransactionContext';
 
 const Dashboard = () => {
@@ -17,6 +18,7 @@ const Dashboard = () => {
   } = useTransactions();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -215,15 +217,28 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {account && (
+        <div className="flex items-center gap-2">
+          {/* Print Statement Button */}
           <button
-            onClick={() => setShowDeleteModal(true)}
-            className="hidden flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={() => setShowPrintModal(true)}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-sm font-medium"
           >
-            <Trash2 size={16} />
-            Delete {account.name}
+            <Printer size={16} />
+            <span className="hidden sm:inline">Print Statement</span>
+            <span className="sm:hidden">Print</span>
           </button>
-        )}
+
+          {account && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 size={16} />
+              <span className="hidden sm:inline">Delete {account.name}</span>
+              <span className="sm:hidden">Delete</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Dashboard Cards */}
@@ -406,7 +421,7 @@ const Dashboard = () => {
                       <button
                         key={page}
                         onClick={() => goToPage(page)}
-                        className={`min-w-[40px] px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                        className={`min-w-10 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
                           currentPage === page
                             ? 'bg-black text-white shadow-md'
                             : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-blue-400'
@@ -481,6 +496,7 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Modals */}
       {account && (
         <DeleteConfirmationModal
           isOpen={showDeleteModal}
@@ -489,6 +505,14 @@ const Dashboard = () => {
           accountName={account.name}
         />
       )}
+
+      <PrintStatementModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        transactions={allTransactions}
+        accountName={selectedAccountId === 'all' ? 'All Accounts' : account?.name}
+        accountId={selectedAccountId}
+      />
     </div>
   );
 };
